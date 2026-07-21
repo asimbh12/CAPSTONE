@@ -28,7 +28,13 @@ def _extract_text(extension: str, content: bytes) -> str:
         return "\n\n".join(page.extract_text() or "" for page in PdfReader(BytesIO(content)).pages)
     if extension == ".docx":
         document = DocxDocument(BytesIO(content))
-        return "\n".join(paragraph.text for paragraph in document.paragraphs)
+        blocks = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
+        for table in document.tables:
+            for row in table.rows:
+                cells = [re.sub(r"\s+", " ", cell.text).strip() for cell in row.cells]
+                if any(cells):
+                    blocks.append(" | ".join(cells))
+        return "\n".join(blocks)
     decoded = content.decode("utf-8-sig")
     if extension == ".json":
         return json.dumps(json.loads(decoded), ensure_ascii=False, indent=2)

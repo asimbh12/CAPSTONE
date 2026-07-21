@@ -15,7 +15,10 @@ def score(value: int, probability: int, effort: int) -> tuple[float, float, str]
     v, p, e = Decimal(value), Decimal(probability), Decimal(effort)
     raw = (v * (p / Decimal(100)) / e).quantize(Decimal("0.0001"), ROUND_HALF_UP)
     normalized = (v * p / (Decimal(5) * e)).quantize(Decimal("0.1"), ROUND_HALF_UP)
-    explanation = f"({value} strategic value × {probability}% probability) ÷ {effort} effort; normalized to {normalized}/100."
+    explanation = (
+        f"({value} strategic value × {probability}% probability) ÷ {effort} effort; "
+        f"normalized to {normalized}/100."
+    )
     return float(raw), float(normalized), explanation
 
 

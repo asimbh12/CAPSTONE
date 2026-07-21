@@ -1,11 +1,22 @@
 # Stage 4 onboarding test guide
 
+For comprehensive extraction, use **AI allowed** (the default). Gemini analyses document text
+and uses URL Context for public pages, including JavaScript-rendered pages that expose little
+text to CAPSTONE's local reader. The review screen reports retrieval method, locally visible
+character count, and input quality.
+
+**Local only** never sends source content to Gemini. It is intentionally limited to dated text
+entries and will not comprehensively interpret undated achievements, qualifications,
+publications, grants, or document structure. DOCX paragraph and table text are both preserved.
+For LinkedIn and access-controlled sites, upload a public profile PDF/export because automated
+page retrieval may be blocked.
+
 1. Open <http://127.0.0.1:5173> and choose **Import career**.
 2. Select a public-information CV in PDF, DOCX, or TXT format, or enter an accessible public
    professional URL. For broader coverage, add two to ten typed URLs such as an institutional
    profile, ORCID, Google Scholar, personal website, or media profile and analyse them together.
-3. Choose **Local only** for deterministic extraction, or **AI allowed** when Gemini has been
-   configured and the content is eligible to leave the computer.
+3. Keep **AI allowed** for comprehensive analysis when the content is eligible to leave the
+   computer, or choose **Local only** for limited deterministic extraction.
 4. Confirm the public-information declaration and analyse the source.
 5. Review and edit every proposed profile field and career asset. Clear **Include this career
    asset** for anything that should not be imported.

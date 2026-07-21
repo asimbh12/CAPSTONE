@@ -1,3 +1,6 @@
+from io import BytesIO
+
+from docx import Document as DocxDocument
 from fastapi.testclient import TestClient
 
 from app.schemas.ingestion import (
@@ -6,7 +9,30 @@ from app.schemas.ingestion import (
     ProposedProfile,
     PublicProfileSource,
 )
+from app.services.ai import DeterministicCareerExtractor
+from app.services.documents import _extract_text
 from app.services.ingestion import merge_source_proposals
+
+
+def test_docx_extraction_includes_tables() -> None:
+    document = DocxDocument()
+    document.add_paragraph("Public career profile")
+    table = document.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "Director"
+    table.cell(0, 1).text = "2020 – present"
+    content = BytesIO()
+    document.save(content)
+
+    extracted = _extract_text(".docx", content.getvalue())
+
+    assert "Director | 2020 – present" in extracted
+
+
+def test_offline_extraction_does_not_treat_url_digits_as_a_year() -> None:
+    proposal = DeterministicCareerExtractor().extract(
+        "Example Professional\nLinkedIn: https://example.org/profile-1907", "CV"
+    )
+    assert proposal.assets == []
 
 
 def test_document_ingestion_reviews_and_populates_without_overwriting_user_facts(

@@ -59,7 +59,23 @@ def create_ingestion(
         raise HTTPException(status_code=422, detail="No readable text was found in this source")
     extractor = get_career_extractor(policy)
     try:
-        proposal = extractor.extract(text, source_label)
+        proposal = (
+            extractor.extract_url(source_url, text, source_label)
+            if source_url
+            else extractor.extract(text, source_label)
+        )
+        proposal.source_diagnostics.update(
+            {
+                "input_characters": len(text),
+                "input_quality": "thin" if len(text) < 500 else "substantial",
+            }
+        )
+        if len(text) < 500 and extractor.name != "gemini":
+            proposal.warnings.insert(
+                0,
+                "The page exposed very little readable text. Choose AI allowed for URL Context, "
+                "add another source, or upload a PDF/profile export.",
+            )
         run = IngestionRun(
             source_type=source_type,
             source_label=source_label,
@@ -163,8 +179,13 @@ def create_multi_url_ingestion(
     for source in sources:
         label, text = fetch_public_page(source.url)
         input_characters += len(text)
-        extracted.append((source, label, extractor.extract(text, label)))
+        extracted.append((source, label, extractor.extract_url(source.url, text, label)))
     proposal = merge_source_proposals(extracted)
+    proposal.source_diagnostics = {
+        "source_count": len(sources),
+        "locally_visible_characters": input_characters,
+        "retrieval": "gemini_url_context" if extractor.name == "gemini" else "local_html",
+    }
     run = IngestionRun(
         source_type="url_collection",
         source_label=f"Career source collection ({len(sources)} URLs)",
@@ -213,7 +234,7 @@ def reprocess_ingestion(session: Session, run: IngestionRun) -> IngestionRun:
         for source in manifest:
             label, source_text = fetch_public_page(source.url)
             input_characters += len(source_text)
-            extracted.append((source, label, extractor.extract(source_text, label)))
+            extracted.append((source, label, extractor.extract_url(source.url, source_text, label)))
         run.provider = extractor.name
         run.proposal_json = merge_source_proposals(extracted).model_dump_json()
         run.status = "ready_for_review"
@@ -250,7 +271,11 @@ def reprocess_ingestion(session: Session, run: IngestionRun) -> IngestionRun:
     else:
         raise HTTPException(status_code=422, detail="Ingestion has no reusable source")
     extractor = get_career_extractor(policy)
-    proposal = extractor.extract(text, run.source_label)
+    proposal = (
+        extractor.extract_url(run.source_url, text, run.source_label)
+        if run.source_url
+        else extractor.extract(text, run.source_label)
+    )
     run.provider = extractor.name
     run.proposal_json = proposal.model_dump_json()
     run.status = "ready_for_review"

@@ -20,6 +20,11 @@ class CareerExtractor(ABC):
     @abstractmethod
     def extract(self, text: str, source_label: str) -> CareerExtractionProposal: ...
 
+    def extract_url(
+        self, url: str, fallback_text: str, source_label: str
+    ) -> CareerExtractionProposal:
+        return self.extract(fallback_text, source_label)
+
     @abstractmethod
     def enrich(self, text: str) -> AssetEnrichment: ...
 
@@ -33,13 +38,19 @@ class DeterministicCareerExtractor(CareerExtractor):
         name = lines[0][:200] if lines else ""
         assets: list[ProposedAsset] = []
         pattern = re.compile(
-            r"(?P<start>(?:19|20)\d{2})(?:\s*[-–—]\s*(?P<end>(?:19|20)\d{2}|present))?", re.I
+            r"(?<![A-Za-z0-9:/])(?P<start>(?:19|20)\d{2})"
+            r"(?:\s*[-–—]\s*(?P<end>(?:19|20)\d{2}|present))?(?!\d)",
+            re.I,
         )
-        for index, line in enumerate(lines[:250]):
-            match = pattern.search(line)
-            if not match or len(line) > 300:
+        for index, line in enumerate(lines[:500]):
+            line_without_urls = re.sub(r"https?://\S+", "", line, flags=re.I)
+            match = pattern.search(line_without_urls)
+            if not match or len(line) > 500:
                 continue
-            title = pattern.sub("", line).strip(" -–—|,") or "Professional experience"
+            title = (
+                pattern.sub("", line_without_urls).strip(" -–—|,")
+                or "Professional experience"
+            )
             detail = lines[index + 1] if index + 1 < len(lines) else ""
             assets.append(
                 ProposedAsset(
@@ -50,22 +61,21 @@ class DeterministicCareerExtractor(CareerExtractor):
                     end_date=None
                     if not match.group("end") or match.group("end").lower() == "present"
                     else date(int(match.group("end")), 12, 31),
-                    themes=[],
                     tags=["imported-from-career-document"],
                 )
             )
         warning = (
-            "Offline extraction found no dated entries; enable Gemini or edit the "
-            "proposal manually."
+            "Offline extraction found no dated entries; choose AI allowed for comprehensive "
+            "analysis or edit the proposal manually."
             if not assets
-            else "Review dates and titles before applying; offline extraction is "
-            "intentionally conservative."
+            else "Local extraction captures date-shaped entries only. Choose AI allowed to analyse "
+            "undated achievements, qualifications, publications, grants and other sections."
         )
         return CareerExtractionProposal(
             profile=ProposedProfile(
                 name=name, career_narrative=f"Career information extracted from {source_label}."
             ),
-            assets=assets[:50],
+            assets=assets[:100],
             warnings=[warning],
         )
 
@@ -86,17 +96,24 @@ class GeminiCareerExtractor(CareerExtractor):
         self.client = genai.Client(api_key=settings.gemini_api_key)
         self.model = settings.gemini_model
 
-    def extract(self, text: str, source_label: str) -> CareerExtractionProposal:
-        prompt = (
-            "Extract only explicitly supported public professional facts from this career source. "
-            "Do not infer achievements, dates, employers, impact, or identity. Propose a profile, "
-            "dated career assets, concise AI-managed tags and themes. Use empty values "
-            "when unknown. "
-            f"Source: {source_label}\n\n{text[:120_000]}"
+    @staticmethod
+    def _instructions() -> str:
+        return (
+            "Create a comprehensive, source-grounded inventory of every explicitly stated public "
+            "professional fact. Include employment, appointments, acting roles, education, "
+            "qualifications, awards, grants, funded projects, publications, patents, research "
+            "themes, teaching, supervision, committees, boards, memberships, industry and "
+            "government engagement, media, service, leadership, and quantified impact. Create "
+            "separate assets for distinct facts even when no date is stated; dates are optional. "
+            "Preserve organisations, roles, descriptions, outcomes and metrics in substance. Do "
+            "not infer or embellish. Return up to 150 distinct assets, plus concise tags and "
+            "themes."
         )
+
+    def extract(self, text: str, source_label: str) -> CareerExtractionProposal:
         response = self.client.models.generate_content(
             model=self.model,
-            contents=prompt,
+            contents=f"{self._instructions()}\n\nSource: {source_label}\n\n{text[:120_000]}",
             config={
                 "response_mime_type": "application/json",
                 "response_schema": ProviderCareerExtractionProposal,
@@ -107,6 +124,45 @@ class GeminiCareerExtractor(CareerExtractor):
             response.text or "{}"
         )
         return CareerExtractionProposal.model_validate(provider_result.model_dump())
+
+    def extract_url(
+        self, url: str, fallback_text: str, source_label: str
+    ) -> CareerExtractionProposal:
+        try:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=(
+                    f"{self._instructions()} Use URL context to read the URL. If retrieval fails, "
+                    f"explain it in warnings.\n\nSource: {source_label}\nURL: {url}"
+                ),
+                config={
+                    "tools": [{"url_context": {}}],
+                    "response_mime_type": "application/json",
+                    "response_schema": ProviderCareerExtractionProposal,
+                    "temperature": 0,
+                },
+            )
+            provider_result = ProviderCareerExtractionProposal.model_validate_json(
+                response.text or "{}"
+            )
+            proposal = CareerExtractionProposal.model_validate(provider_result.model_dump())
+            proposal.source_diagnostics = {
+                "retrieval": "gemini_url_context",
+                "locally_visible_characters": len(fallback_text),
+            }
+            return proposal
+        except Exception:
+            proposal = self.extract(fallback_text, source_label)
+            proposal.warnings.insert(
+                0,
+                "Gemini URL Context was unavailable; analysis used only text visible to the local "
+                "page reader.",
+            )
+            proposal.source_diagnostics = {
+                "retrieval": "local_html_fallback",
+                "locally_visible_characters": len(fallback_text),
+            }
+            return proposal
 
     def enrich(self, text: str) -> AssetEnrichment:
         response = self.client.models.generate_content(

@@ -22,7 +22,7 @@ export function OnboardingPage() {
     { url: '', source_type: 'institutional_profile' },
     { url: '', source_type: 'google_scholar' },
   ])
-  const [policy, setPolicy] = useState<Policy>('local_only')
+  const [policy, setPolicy] = useState<Policy>('ai_allowed')
   const [confirmed, setConfirmed] = useState(false)
   const [run, setRun] = useState<IngestionRun | null>(null)
   const [busy, setBusy] = useState(false)
@@ -104,6 +104,7 @@ export function OnboardingPage() {
       {run.proposal.warnings.map((warning) => <Alert severity="warning" sx={{ mt: 2 }} key={warning}>{warning}</Alert>)}
       {run.proposal.conflicts?.map((conflict) => <Alert severity="error" sx={{ mt: 2 }} key={conflict}>{conflict}</Alert>)}
       {run.proposal.coverage && Object.keys(run.proposal.coverage).length > 0 && <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>{Object.entries(run.proposal.coverage).map(([sourceType, count]) => <Alert severity="info" key={sourceType}>{sourceType.replaceAll('_', ' ')}: {count} proposed assets</Alert>)}</Stack>}
+      {run.proposal.source_diagnostics && Object.keys(run.proposal.source_diagnostics).length > 0 && <Alert severity="info" sx={{ mt: 2 }}>Source coverage: {Object.entries(run.proposal.source_diagnostics).map(([key, value]) => `${key.replaceAll('_', ' ')}: ${String(value)}`).join(' · ')}</Alert>}
       <Typography variant="h6" mt={3} mb={2}>Proposed profile fields</Typography><Grid container spacing={2}>
         {([['name','Name'],['current_title','Current title'],['current_organisation','Current organisation'],['career_narrative','Career narrative']] as const).map(([field,label]) => <Grid key={field} size={{ xs: 12, md: field === 'career_narrative' ? 12 : 4 }}><TextField fullWidth multiline={field === 'career_narrative'} label={label} value={run.proposal.profile[field]} onChange={(event) => updateProfile(field, event.target.value)} /></Grid>)}
       </Grid><Typography variant="h6" mt={4} mb={2}>Proposed career assets ({run.proposal.assets.filter((item) => item.include).length} selected)</Typography>

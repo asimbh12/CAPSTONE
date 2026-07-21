@@ -41,6 +41,7 @@ class CareerExtractionProposal(IngestionModel):
     warnings: list[str] = Field(default_factory=list)
     conflicts: list[str] = Field(default_factory=list)
     coverage: dict[str, int] = Field(default_factory=dict)
+    source_diagnostics: dict[str, str | int | bool] = Field(default_factory=dict)
 
 
 class ProviderProposedProfile(IngestionModel):

@@ -20,6 +20,9 @@ The enrichment workspace also provides provider visibility, ingestion history, c
 reprocessing and suppression controls, plus additive AI-managed asset tags and themes.
 Multiple typed public URLs can be analysed as one source collection with cross-source
 deduplication, conflict warnings, coverage summaries, and source-level evidence provenance.
+Public URL analysis uses Gemini URL Context when **AI allowed** is selected, while DOCX imports
+preserve both paragraph and table content. The review screen reports source coverage and warns
+when a page exposes too little readable text for reliable local-only extraction.
 
 Stage 5 adds an **Opportunities** workspace for jobs, grants, fellowships, awards, leadership,
 board, media, and custom opportunities. It provides lifecycle tracking, deadline urgency,

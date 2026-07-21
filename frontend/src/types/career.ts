@@ -154,6 +154,7 @@ export interface IngestionProposal {
   warnings: string[]
   conflicts: string[]
   coverage: Record<string, number>
+  source_diagnostics: Record<string, string | number | boolean>
 }
 
 export interface PublicProfileSource {
