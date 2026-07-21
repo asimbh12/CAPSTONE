@@ -22,10 +22,10 @@ from app.schemas.ingestion import (
 from app.services.documents import store_document
 from app.services.ingestion import (
     apply_ingestion,
+    build_profile_source_manifest,
     create_ingestion,
     create_multi_url_ingestion,
     enrich_asset,
-    expand_public_profile_sources,
     fetch_public_page,
     ingestion_read,
     reprocess_ingestion,
@@ -98,7 +98,8 @@ def ingest_url(payload: UrlIngestionRequest, session: SessionDependency) -> dict
         raise HTTPException(
             status_code=422, detail="Confirm that the URL contains public professional information"
         )
-    expanded_sources = expand_public_profile_sources(payload.url)
+    submitted = PublicProfileSource(url=payload.url, source_type="other")
+    expanded_sources = build_profile_source_manifest(submitted)
     if len(expanded_sources) > 1:
         run = create_multi_url_ingestion(
             session, sources=expanded_sources, policy=payload.ai_handling_policy
@@ -132,9 +133,8 @@ def ingest_url_collection(
         raise HTTPException(status_code=422, detail="Remove duplicate URLs before analysis")
     expanded: list[PublicProfileSource] = []
     for source in payload.sources:
-        discovered = expand_public_profile_sources(source.url)
-        expanded.extend(discovered if len(discovered) > 1 else [source])
-    deduplicated = list({source.url: source for source in expanded}.values())
+        expanded.extend(build_profile_source_manifest(source))
+    deduplicated = list({source.url: source for source in expanded}.values())[:20]
     run = create_multi_url_ingestion(
         session, sources=deduplicated, policy=payload.ai_handling_policy
     )

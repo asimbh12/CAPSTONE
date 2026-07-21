@@ -11,7 +11,11 @@ from app.schemas.ingestion import (
 )
 from app.services.ai import DeterministicCareerExtractor
 from app.services.documents import _extract_text
-from app.services.ingestion import expand_public_profile_sources, merge_source_proposals
+from app.services.ingestion import (
+    discover_linked_profile_sources,
+    expand_public_profile_sources,
+    merge_source_proposals,
+)
 
 
 def test_docx_extraction_includes_tables() -> None:
@@ -55,6 +59,37 @@ def test_non_deakin_profile_is_not_expanded() -> None:
     sources = expand_public_profile_sources("https://orcid.org/0000-0001-6876-1437")
     assert len(sources) == 1
     assert sources[0].url == "https://orcid.org/0000-0001-6876-1437"
+
+
+def test_google_scholar_profile_expands_to_hundred_result_pages() -> None:
+    sources = expand_public_profile_sources(
+        "https://scholar.google.com/citations?user=abc123&hl=en"
+    )
+
+    assert len(sources) == 10
+    assert all(source.source_type == "google_scholar" for source in sources)
+    assert "cstart=0" in sources[0].url and "pagesize=100" in sources[0].url
+    assert "cstart=900" in sources[-1].url
+
+
+def test_link_discovery_keeps_relevant_same_site_pages_only() -> None:
+    source = PublicProfileSource(
+        url="https://profiles.example.edu/people/jane-doe", source_type="institutional_profile"
+    )
+    html = """
+    <a href="/people/jane-doe/publications?page=2">More publications</a>
+    <a href="/people/jane-doe/grants">Research grants</a>
+    <a href="https://unrelated.example.org/jane">External profile</a>
+    <a href="/privacy">Privacy</a>
+    """
+
+    sources = discover_linked_profile_sources(source, html)
+
+    assert [item.url for item in sources] == [
+        source.url,
+        "https://profiles.example.edu/people/jane-doe/publications?page=2",
+        "https://profiles.example.edu/people/jane-doe/grants",
+    ]
 
 
 def test_document_ingestion_reviews_and_populates_without_overwriting_user_facts(

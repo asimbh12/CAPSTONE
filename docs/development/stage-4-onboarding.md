@@ -16,6 +16,11 @@ research/grants, professional activities, and teaching/supervision sections. Eac
 analysed separately, duplicates are merged, and the supporting section URL is retained on each
 proposed asset.
 
+Google Scholar profiles are expanded into 100-result pages (up to 1,000 results), stopping after
+the first empty continuation page. Other public profile hubs are inspected for relevant
+same-profile sections and pagination links with a 20-page safety limit. Every analysed page is
+retained in the source manifest for coverage review and repeatable reprocessing.
+
 1. Open <http://127.0.0.1:5173> and choose **Import career**.
 2. Select a public-information CV in PDF, DOCX, or TXT format, or enter an accessible public
    professional URL. For broader coverage, add two to ten typed URLs such as an institutional

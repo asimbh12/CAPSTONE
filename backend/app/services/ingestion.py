@@ -4,7 +4,8 @@ import re
 import socket
 from datetime import UTC, datetime
 from html import unescape
-from urllib.parse import urlparse
+from html.parser import HTMLParser
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 from urllib.request import Request, urlopen
 from uuid import UUID
 
@@ -42,12 +43,68 @@ DEAKIN_PROFILE_SECTIONS = (
     ("professional_activities", "/professional"),
     ("teaching_supervision", "/teaching"),
 )
+MAX_DISCOVERED_PAGES = 20
+PROFILE_LINK_TERMS = {
+    "about",
+    "appointment",
+    "award",
+    "biography",
+    "education",
+    "employment",
+    "experience",
+    "grant",
+    "media",
+    "membership",
+    "professional",
+    "profile",
+    "project",
+    "publication",
+    "qualification",
+    "research",
+    "service",
+    "supervision",
+    "teaching",
+}
+
+
+class _ProfileLinkParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[tuple[str, str]] = []
+        self._href = ""
+        self._text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.casefold() == "a":
+            self._href = dict(attrs).get("href") or ""
+            self._text = []
+
+    def handle_data(self, data: str) -> None:
+        if self._href:
+            self._text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "a" and self._href:
+            self.links.append((self._href, " ".join(self._text)))
+            self._href = ""
+            self._text = []
 
 
 def expand_public_profile_sources(url: str) -> list[PublicProfileSource]:
     """Expand supported profile hubs into their public, first-party section pages."""
     parsed = urlparse(url)
-    if parsed.hostname not in {"experts.deakin.edu.au", "www.experts.deakin.edu.au"}:
+    hostname = (parsed.hostname or "").casefold()
+    if hostname.endswith("scholar.google.com") or hostname.startswith("scholar.google."):
+        query = parse_qs(parsed.query)
+        if parsed.path == "/citations" and query.get("user"):
+            pages: list[PublicProfileSource] = []
+            for offset in range(0, 1_000, 100):
+                page_query = {key: values[-1] for key, values in query.items()}
+                page_query.update({"cstart": str(offset), "pagesize": "100"})
+                page_url = urlunparse(parsed._replace(query=urlencode(page_query)))
+                pages.append(PublicProfileSource(url=page_url, source_type="google_scholar"))
+            return pages
+    if hostname not in {"experts.deakin.edu.au", "www.experts.deakin.edu.au"}:
         return [PublicProfileSource(url=url, source_type="other")]
     segments = [segment for segment in parsed.path.split("/") if segment]
     if not segments or not re.fullmatch(r"\d+-[a-z0-9-]+", segments[0], re.I):
@@ -57,6 +114,55 @@ def expand_public_profile_sources(url: str) -> list[PublicProfileSource]:
         PublicProfileSource(url=f"{root}{suffix}", source_type=source_type)
         for source_type, suffix in DEAKIN_PROFILE_SECTIONS
     ]
+
+
+def discover_linked_profile_sources(
+    source: PublicProfileSource, html: str
+) -> list[PublicProfileSource]:
+    """Discover relevant, same-site pages linked by a public profile hub."""
+    parser = _ProfileLinkParser()
+    parser.feed(html)
+    base = urlparse(source.url)
+    hostname = (base.hostname or "").casefold()
+    candidates: list[tuple[int, str]] = []
+    for href, anchor in parser.links:
+        absolute = urljoin(source.url, href)
+        parsed = urlparse(absolute)
+        if parsed.scheme not in {"http", "https"} or (parsed.hostname or "").casefold() != hostname:
+            continue
+        base_path = base.path.rstrip("/")
+        if base_path and parsed.path != base_path and not parsed.path.startswith(f"{base_path}/"):
+            continue
+        if parsed.path == base.path and parsed.query == base.query:
+            continue
+        searchable = f"{parsed.path} {parsed.query} {anchor}".casefold()
+        score = sum(term in searchable for term in PROFILE_LINK_TERMS)
+        is_pagination = bool(re.search(r"(?:page|start|offset|cstart)=\d+", parsed.query, re.I))
+        if not score and not is_pagination:
+            continue
+        clean = urlunparse(parsed._replace(fragment=""))
+        candidates.append((score + (2 if is_pagination else 0), clean))
+    ordered = [source]
+    seen = {source.url}
+    for _, url in sorted(candidates, key=lambda item: (-item[0], item[1])):
+        if url not in seen:
+            ordered.append(PublicProfileSource(url=url, source_type="profile_section"))
+            seen.add(url)
+        if len(ordered) >= MAX_DISCOVERED_PAGES:
+            break
+    return ordered
+
+
+def build_profile_source_manifest(source: PublicProfileSource) -> list[PublicProfileSource]:
+    """Build the bounded set of pages that should be analysed for one supplied profile URL."""
+    expanded = expand_public_profile_sources(source.url)
+    if len(expanded) > 1:
+        return expanded
+    try:
+        _, _, html = fetch_public_document(source.url)
+    except HTTPException:
+        return [source]
+    return discover_linked_profile_sources(source, html)
 
 
 def ingestion_read(run: IngestionRun) -> dict[str, object]:
@@ -199,8 +305,21 @@ def create_multi_url_ingestion(
     extractor = get_career_extractor(policy)
     extracted: list[tuple[PublicProfileSource, str, CareerExtractionProposal]] = []
     input_characters = 0
-    for source in sources:
-        label, text = fetch_public_page(source.url)
+    processed_sources: list[PublicProfileSource] = []
+    pending = list(sources[:MAX_DISCOVERED_PAGES])
+    queued_urls = {source.url for source in pending}
+    for source in pending:
+        try:
+            label, text, html = fetch_public_document(source.url)
+            if source.source_type not in {"google_scholar", "orcid"}:
+                for linked in discover_linked_profile_sources(source, html)[1:]:
+                    if linked.url not in queued_urls and len(pending) < MAX_DISCOVERED_PAGES:
+                        pending.append(linked)
+                        queued_urls.add(linked.url)
+        except HTTPException:
+            if extractor.name != "gemini":
+                raise
+            label, text = source.url, ""
         input_characters += len(text)
         source_proposal = extractor.extract_url(source.url, text, label)
         if not source_proposal.assets:
@@ -209,16 +328,26 @@ def create_multi_url_ingestion(
                 "public Google Scholar or ORCID URL as another source."
             )
         extracted.append((source, label, source_proposal))
+        processed_sources.append(source)
+        raw_offset = parse_qs(urlparse(source.url).query).get("cstart", ["0"])[0]
+        scholar_offset = int(raw_offset) if raw_offset.isdigit() else 0
+        if (
+            source.source_type == "google_scholar"
+            and scholar_offset > 0
+            and not source_proposal.assets
+        ):
+            break
     proposal = merge_source_proposals(extracted)
     proposal.source_diagnostics = {
-        "source_count": len(sources),
+        "source_count": len(processed_sources),
+        "pages_discovered": len(pending),
         "locally_visible_characters": input_characters,
         "retrieval": "gemini_url_context" if extractor.name == "gemini" else "local_html",
     }
     run = IngestionRun(
         source_type="url_collection",
-        source_label=f"Career source collection ({len(sources)} URLs)",
-        source_manifest_json=json.dumps([item.model_dump() for item in sources]),
+        source_label=f"Career source collection ({len(processed_sources)} pages analysed)",
+        source_manifest_json=json.dumps([item.model_dump() for item in processed_sources]),
         ai_handling_policy=policy.value,
         provider=extractor.name,
         proposal_json=proposal.model_dump_json(),
@@ -244,7 +373,7 @@ def create_multi_url_ingestion(
         entity_id=run.id,
         action="multi_source_proposed",
         source=Provenance.AI.value if extractor.name == "gemini" else Provenance.RULE.value,
-        details={"source_count": len(sources), "provider": extractor.name},
+        details={"source_count": len(processed_sources), "provider": extractor.name},
     )
     return run
 
@@ -261,7 +390,12 @@ def reprocess_ingestion(session: Session, run: IngestionRun) -> IngestionRun:
         extracted: list[tuple[PublicProfileSource, str, CareerExtractionProposal]] = []
         input_characters = 0
         for source in manifest:
-            label, source_text = fetch_public_page(source.url)
+            try:
+                label, source_text = fetch_public_page(source.url)
+            except HTTPException:
+                if extractor.name != "gemini":
+                    raise
+                label, source_text = source.url, ""
             input_characters += len(source_text)
             extracted.append((source, label, extractor.extract_url(source.url, source_text, label)))
         run.provider = extractor.name
@@ -411,7 +545,7 @@ def enrich_asset(session: Session, asset: CareerAsset) -> AssetEnrichmentResult:
     )
 
 
-def fetch_public_page(url: str) -> tuple[str, str]:
+def fetch_public_document(url: str) -> tuple[str, str, str]:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise HTTPException(status_code=422, detail="Enter a valid public HTTP or HTTPS URL")
@@ -450,7 +584,12 @@ def fetch_public_page(url: str) -> tuple[str, str]:
     label = unescape(re.sub(r"\s+", " ", title_match.group(1)).strip()) if title_match else url
     text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.I | re.S)
     text = unescape(re.sub(r"<[^>]+>", "\n", text))
-    return label[:500], re.sub(r"\n\s*\n+", "\n", text).strip()
+    return label[:500], re.sub(r"\n\s*\n+", "\n", text).strip(), html
+
+
+def fetch_public_page(url: str) -> tuple[str, str]:
+    label, text, _ = fetch_public_document(url)
+    return label, text
 
 
 def apply_ingestion(
