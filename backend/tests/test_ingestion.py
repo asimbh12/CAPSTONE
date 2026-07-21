@@ -11,7 +11,7 @@ from app.schemas.ingestion import (
 )
 from app.services.ai import DeterministicCareerExtractor
 from app.services.documents import _extract_text
-from app.services.ingestion import merge_source_proposals
+from app.services.ingestion import expand_public_profile_sources, merge_source_proposals
 
 
 def test_docx_extraction_includes_tables() -> None:
@@ -33,6 +33,28 @@ def test_offline_extraction_does_not_treat_url_digits_as_a_year() -> None:
         "Example Professional\nLinkedIn: https://example.org/profile-1907", "CV"
     )
     assert proposal.assets == []
+
+
+def test_deakin_expert_profile_expands_to_all_public_sections() -> None:
+    sources = expand_public_profile_sources(
+        "https://experts.deakin.edu.au/150-asim-bhatti/publications"
+    )
+
+    assert [source.source_type for source in sources] == [
+        "profile",
+        "research_outputs",
+        "research_grants",
+        "professional_activities",
+        "teaching_supervision",
+    ]
+    assert sources[0].url == "https://experts.deakin.edu.au/150-asim-bhatti"
+    assert sources[-1].url.endswith("/teaching")
+
+
+def test_non_deakin_profile_is_not_expanded() -> None:
+    sources = expand_public_profile_sources("https://orcid.org/0000-0001-6876-1437")
+    assert len(sources) == 1
+    assert sources[0].url == "https://orcid.org/0000-0001-6876-1437"
 
 
 def test_document_ingestion_reviews_and_populates_without_overwriting_user_facts(

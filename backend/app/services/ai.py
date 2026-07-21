@@ -47,10 +47,7 @@ class DeterministicCareerExtractor(CareerExtractor):
             match = pattern.search(line_without_urls)
             if not match or len(line) > 500:
                 continue
-            title = (
-                pattern.sub("", line_without_urls).strip(" -–—|,")
-                or "Professional experience"
-            )
+            title = pattern.sub("", line_without_urls).strip(" -–—|,") or "Professional experience"
             detail = lines[index + 1] if index + 1 < len(lines) else ""
             assets.append(
                 ProposedAsset(

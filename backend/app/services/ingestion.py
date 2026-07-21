@@ -35,6 +35,29 @@ from app.schemas.ingestion import (
 from app.services.ai import get_career_extractor
 from app.services.audit import record_audit
 
+DEAKIN_PROFILE_SECTIONS = (
+    ("profile", ""),
+    ("research_outputs", "/publications"),
+    ("research_grants", "/grants"),
+    ("professional_activities", "/professional"),
+    ("teaching_supervision", "/teaching"),
+)
+
+
+def expand_public_profile_sources(url: str) -> list[PublicProfileSource]:
+    """Expand supported profile hubs into their public, first-party section pages."""
+    parsed = urlparse(url)
+    if parsed.hostname not in {"experts.deakin.edu.au", "www.experts.deakin.edu.au"}:
+        return [PublicProfileSource(url=url, source_type="other")]
+    segments = [segment for segment in parsed.path.split("/") if segment]
+    if not segments or not re.fullmatch(r"\d+-[a-z0-9-]+", segments[0], re.I):
+        return [PublicProfileSource(url=url, source_type="other")]
+    root = f"{parsed.scheme}://{parsed.hostname}/{segments[0]}"
+    return [
+        PublicProfileSource(url=f"{root}{suffix}", source_type=source_type)
+        for source_type, suffix in DEAKIN_PROFILE_SECTIONS
+    ]
+
 
 def ingestion_read(run: IngestionRun) -> dict[str, object]:
     return {
@@ -179,7 +202,13 @@ def create_multi_url_ingestion(
     for source in sources:
         label, text = fetch_public_page(source.url)
         input_characters += len(text)
-        extracted.append((source, label, extractor.extract_url(source.url, text, label)))
+        source_proposal = extractor.extract_url(source.url, text, label)
+        if not source_proposal.assets:
+            source_proposal.warnings.append(
+                "This section returned no extractable assets. For research outputs, add the "
+                "public Google Scholar or ORCID URL as another source."
+            )
+        extracted.append((source, label, source_proposal))
     proposal = merge_source_proposals(extracted)
     proposal.source_diagnostics = {
         "source_count": len(sources),

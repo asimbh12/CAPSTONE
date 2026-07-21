@@ -11,6 +11,11 @@ publications, grants, or document structure. DOCX paragraph and table text are b
 For LinkedIn and access-controlled sites, upload a public profile PDF/export because automated
 page retrieval may be blocked.
 
+Deakin Experts profile URLs are expanded automatically into the profile, research outputs,
+research/grants, professional activities, and teaching/supervision sections. Each section is
+analysed separately, duplicates are merged, and the supporting section URL is retained on each
+proposed asset.
+
 1. Open <http://127.0.0.1:5173> and choose **Import career**.
 2. Select a public-information CV in PDF, DOCX, or TXT format, or enter an accessible public
    professional URL. For broader coverage, add two to ten typed URLs such as an institutional

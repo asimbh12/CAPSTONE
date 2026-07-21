@@ -16,6 +16,7 @@ from app.schemas.ingestion import (
     CareerExtractionProposal,
     IngestionRead,
     MultiUrlIngestionRequest,
+    PublicProfileSource,
     UrlIngestionRequest,
 )
 from app.services.documents import store_document
@@ -24,6 +25,7 @@ from app.services.ingestion import (
     create_ingestion,
     create_multi_url_ingestion,
     enrich_asset,
+    expand_public_profile_sources,
     fetch_public_page,
     ingestion_read,
     reprocess_ingestion,
@@ -96,6 +98,14 @@ def ingest_url(payload: UrlIngestionRequest, session: SessionDependency) -> dict
         raise HTTPException(
             status_code=422, detail="Confirm that the URL contains public professional information"
         )
+    expanded_sources = expand_public_profile_sources(payload.url)
+    if len(expanded_sources) > 1:
+        run = create_multi_url_ingestion(
+            session, sources=expanded_sources, policy=payload.ai_handling_policy
+        )
+        session.commit()
+        session.refresh(run)
+        return ingestion_read(run)
     label, text = fetch_public_page(payload.url)
     run = create_ingestion(
         session,
@@ -120,8 +130,13 @@ def ingest_url_collection(
         )
     if len({item.url for item in payload.sources}) != len(payload.sources):
         raise HTTPException(status_code=422, detail="Remove duplicate URLs before analysis")
+    expanded: list[PublicProfileSource] = []
+    for source in payload.sources:
+        discovered = expand_public_profile_sources(source.url)
+        expanded.extend(discovered if len(discovered) > 1 else [source])
+    deduplicated = list({source.url: source for source in expanded}.values())
     run = create_multi_url_ingestion(
-        session, sources=payload.sources, policy=payload.ai_handling_policy
+        session, sources=deduplicated, policy=payload.ai_handling_policy
     )
     session.commit()
     session.refresh(run)
