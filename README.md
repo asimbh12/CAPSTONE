@@ -8,7 +8,20 @@ The first release is a single-user Windows web application with no authenticatio
 
 ## Current status
 
-Stage 1—product definition and architecture—is in progress. No application code has been implemented yet.
+Stage 2 provides the runnable application foundation: a React web shell, FastAPI service,
+SQLite/Alembic persistence, Docker Compose runtime, and automated test scaffolding. Career
+asset workflows begin in Stage 3.
+
+## Run locally
+
+With Docker Desktop running:
+
+```powershell
+docker compose up --build
+```
+
+Then open <http://127.0.0.1:5173>. See the
+[development guide](docs/development/getting-started.md) for native setup and verification.
 
 ## Documentation
 

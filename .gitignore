@@ -27,10 +27,14 @@ dist/
 coverage/
 playwright-report/
 test-results/
+*.tsbuildinfo
+
+# Local runtime data directory placeholders are retained explicitly
+data/*
+!data/.gitkeep
 
 # Editors and OS
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
-
