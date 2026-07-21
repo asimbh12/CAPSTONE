@@ -26,7 +26,6 @@ from app.services.ingestion import (
     create_ingestion,
     create_multi_url_ingestion,
     enrich_asset,
-    fetch_public_page,
     ingestion_read,
     reprocess_ingestion,
     save_proposal,
@@ -100,21 +99,8 @@ def ingest_url(payload: UrlIngestionRequest, session: SessionDependency) -> dict
         )
     submitted = PublicProfileSource(url=payload.url, source_type="other")
     expanded_sources = build_profile_source_manifest(submitted)
-    if len(expanded_sources) > 1:
-        run = create_multi_url_ingestion(
-            session, sources=expanded_sources, policy=payload.ai_handling_policy
-        )
-        session.commit()
-        session.refresh(run)
-        return ingestion_read(run)
-    label, text = fetch_public_page(payload.url)
-    run = create_ingestion(
-        session,
-        source_type="url",
-        source_label=label,
-        source_url=payload.url,
-        text=text,
-        policy=payload.ai_handling_policy,
+    run = create_multi_url_ingestion(
+        session, sources=expanded_sources, policy=payload.ai_handling_policy
     )
     session.commit()
     session.refresh(run)

@@ -38,6 +38,11 @@ Open a career asset and choose **AI enrich** to merge derived tags and themes wi
 the user-authored title, description, dates, role, or impact statement. Provider operations record
 status and character counts for troubleshooting without logging source bodies or API keys.
 
+Profile URL diagnostics are appended to `data/logs/profile-ingestion.jsonl`. The JSONL records
+page discovery, local retrieval outcomes, Gemini retrieval diagnostics, warnings, asset counts,
+pagination stop reasons, timings and final coverage. Source page contents and credentials are not
+logged. Development verification output is retained in `data/logs/development-testing.log`.
+
 Multi-source analysis extracts each URL independently and then creates one consolidated proposal.
 The review shows coverage by source type, source labels for each proposed asset, deduplicated
 overlaps, and conflicts between profile values. Applying the proposal creates separate evidence

@@ -147,8 +147,23 @@ class GeminiCareerExtractor(CareerExtractor):
                 "retrieval": "gemini_url_context",
                 "locally_visible_characters": len(fallback_text),
             }
+            if not proposal.assets and fallback_text.strip():
+                fallback = self.extract(fallback_text, source_label)
+                fallback.warnings = [
+                    *proposal.warnings,
+                    "Gemini URL Context returned no assets; Gemini analysed the text retrieved "
+                    "by CAPSTONE's local public-page reader instead.",
+                    *fallback.warnings,
+                ]
+                fallback.source_diagnostics = {
+                    "retrieval": "local_html_after_url_context_empty",
+                    "locally_visible_characters": len(fallback_text),
+                    "url_context_assets": 0,
+                    "local_text_assets": len(fallback.assets),
+                }
+                return fallback
             return proposal
-        except Exception:
+        except Exception as exc:
             proposal = self.extract(fallback_text, source_label)
             proposal.warnings.insert(
                 0,
@@ -158,6 +173,8 @@ class GeminiCareerExtractor(CareerExtractor):
             proposal.source_diagnostics = {
                 "retrieval": "local_html_fallback",
                 "locally_visible_characters": len(fallback_text),
+                "url_context_error_type": type(exc).__name__,
+                "url_context_error": str(exc)[:1_000],
             }
             return proposal
 

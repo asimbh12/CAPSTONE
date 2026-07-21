@@ -14,6 +14,8 @@ from app.services.documents import _extract_text
 from app.services.ingestion import (
     discover_linked_profile_sources,
     expand_public_profile_sources,
+    extract_google_scholar_rows,
+    is_thin_scholar_continuation,
     merge_source_proposals,
 )
 
@@ -70,6 +72,35 @@ def test_google_scholar_profile_expands_to_hundred_result_pages() -> None:
     assert all(source.source_type == "google_scholar" for source in sources)
     assert "cstart=0" in sources[0].url and "pagesize=100" in sources[0].url
     assert "cstart=900" in sources[-1].url
+
+
+def test_google_scholar_thin_continuation_stops_before_ai_extraction() -> None:
+    continuation = PublicProfileSource(
+        url="https://scholar.google.com/citations?user=abc123&cstart=200&pagesize=100",
+        source_type="google_scholar",
+    )
+
+    assert is_thin_scholar_continuation(continuation, "empty page shell" * 50)
+    assert not is_thin_scholar_continuation(continuation, "publication content" * 500)
+
+
+def test_google_scholar_rows_are_extracted_without_llm_summarisation() -> None:
+    html = """
+    <table>
+      <tr class="gsc_a_tr"><td><a class="gsc_a_at">First publication</a>
+      <div class="gs_gray">A Author, B Author</div><div class="gs_gray">Journal 12</div></td>
+      <td class="gsc_a_y"><span>2024</span></td></tr>
+      <tr class="gsc_a_tr"><td><a class="gsc_a_at">Second publication</a>
+      <div class="gs_gray">A Author</div></td><td class="gsc_a_y"><span>2023</span></td></tr>
+    </table>
+    """
+
+    proposal = extract_google_scholar_rows(html, "Asim Bhatti - Google Scholar")
+
+    assert proposal is not None
+    assert proposal.profile.name == "Asim Bhatti"
+    assert [asset.title for asset in proposal.assets] == ["First publication", "Second publication"]
+    assert proposal.assets[0].start_date.isoformat() == "2024-01-01"
 
 
 def test_link_discovery_keeps_relevant_same_site_pages_only() -> None:

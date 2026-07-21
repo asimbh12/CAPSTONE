@@ -5,6 +5,7 @@ import socket
 from datetime import UTC, datetime
 from html import unescape
 from html.parser import HTMLParser
+from time import monotonic
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 from urllib.request import Request, urlopen
 from uuid import UUID
@@ -31,10 +32,12 @@ from app.schemas.ingestion import (
     AssetEnrichmentResult,
     CareerExtractionProposal,
     ProposedAsset,
+    ProposedProfile,
     PublicProfileSource,
 )
 from app.services.ai import get_career_extractor
 from app.services.audit import record_audit
+from app.services.diagnostics import write_profile_diagnostic
 
 DEAKIN_PROFILE_SECTIONS = (
     ("profile", ""),
@@ -157,12 +160,84 @@ def build_profile_source_manifest(source: PublicProfileSource) -> list[PublicPro
     """Build the bounded set of pages that should be analysed for one supplied profile URL."""
     expanded = expand_public_profile_sources(source.url)
     if len(expanded) > 1:
+        write_profile_diagnostic(
+            "manifest_expanded",
+            submitted_url=source.url,
+            source_type=source.source_type,
+            pages_discovered=len(expanded),
+            discovered_urls=[item.url for item in expanded],
+        )
         return expanded
     try:
         _, _, html = fetch_public_document(source.url)
-    except HTTPException:
+    except HTTPException as exc:
+        write_profile_diagnostic(
+            "manifest_fetch_failed",
+            submitted_url=source.url,
+            source_type=source.source_type,
+            error=str(exc.detail),
+        )
         return [source]
-    return discover_linked_profile_sources(source, html)
+    discovered = discover_linked_profile_sources(source, html)
+    write_profile_diagnostic(
+        "manifest_discovered",
+        submitted_url=source.url,
+        source_type=source.source_type,
+        pages_discovered=len(discovered),
+        discovered_urls=[item.url for item in discovered],
+    )
+    return discovered
+
+
+def is_thin_scholar_continuation(source: PublicProfileSource, text: str) -> bool:
+    raw_offset = parse_qs(urlparse(source.url).query).get("cstart", ["0"])[0]
+    offset = int(raw_offset) if raw_offset.isdigit() else 0
+    return source.source_type == "google_scholar" and offset > 0 and len(text) < 5_000
+
+
+def extract_google_scholar_rows(
+    html: str, source_label: str
+) -> CareerExtractionProposal | None:
+    """Extract every visible Scholar result row without asking an LLM to summarize the list."""
+    rows = re.findall(r'<tr[^>]+class="[^"]*gsc_a_tr[^"]*"[^>]*>(.*?)</tr>', html, re.I | re.S)
+    assets: list[ProposedAsset] = []
+    for row in rows:
+        title_match = re.search(
+            r'<a[^>]+class="[^"]*gsc_a_at[^"]*"[^>]*>(.*?)</a>', row, re.I | re.S
+        )
+        if not title_match:
+            continue
+        title = unescape(re.sub(r"<[^>]+>", "", title_match.group(1))).strip()
+        details = [
+            unescape(re.sub(r"<[^>]+>", "", item)).strip()
+            for item in re.findall(
+                r'<div[^>]+class="[^"]*gs_gray[^"]*"[^>]*>(.*?)</div>', row, re.I | re.S
+            )
+        ]
+        year_match = re.search(r"\b((?:19|20)\d{2})\b", row)
+        assets.append(
+            ProposedAsset(
+                title=title[:300],
+                description=" · ".join(item for item in details if item)[:2_000],
+                category="Research Output",
+                role="Author",
+                start_date=(
+                    datetime(int(year_match.group(1)), 1, 1).date() if year_match else None
+                ),
+                tags=["publication", "google-scholar"],
+            )
+        )
+    if not assets:
+        return None
+    name = source_label.removesuffix(" - Google Scholar").strip()
+    return CareerExtractionProposal(
+        profile=ProposedProfile(name=name),
+        assets=assets,
+        source_diagnostics={
+            "retrieval": "google_scholar_structured_html",
+            "structured_rows": len(assets),
+        },
+    )
 
 
 def ingestion_read(run: IngestionRun) -> dict[str, object]:
@@ -303,12 +378,25 @@ def create_multi_url_ingestion(
     policy: AiHandlingPolicy,
 ) -> IngestionRun:
     extractor = get_career_extractor(policy)
+    diagnostic_id = f"profile-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%fZ')}"
     extracted: list[tuple[PublicProfileSource, str, CareerExtractionProposal]] = []
     input_characters = 0
     processed_sources: list[PublicProfileSource] = []
     pending = list(sources[:MAX_DISCOVERED_PAGES])
     queued_urls = {source.url for source in pending}
+    write_profile_diagnostic(
+        "ingestion_started",
+        diagnostic_id=diagnostic_id,
+        provider=extractor.name,
+        model=extractor.model,
+        policy=policy.value,
+        initial_pages=len(pending),
+        urls=[source.url for source in pending],
+    )
     for source in pending:
+        started = monotonic()
+        local_fetch = "succeeded"
+        local_error = ""
         try:
             label, text, html = fetch_public_document(source.url)
             if source.source_type not in {"google_scholar", "orcid"}:
@@ -316,12 +404,50 @@ def create_multi_url_ingestion(
                     if linked.url not in queued_urls and len(pending) < MAX_DISCOVERED_PAGES:
                         pending.append(linked)
                         queued_urls.add(linked.url)
-        except HTTPException:
+        except HTTPException as exc:
+            local_fetch = "failed"
+            local_error = str(exc.detail)
             if extractor.name != "gemini":
+                write_profile_diagnostic(
+                    "page_failed",
+                    diagnostic_id=diagnostic_id,
+                    url=source.url,
+                    source_type=source.source_type,
+                    stage="local_fetch",
+                    error=local_error,
+                )
                 raise
             label, text = source.url, ""
         input_characters += len(text)
-        source_proposal = extractor.extract_url(source.url, text, label)
+        if is_thin_scholar_continuation(source, text):
+            write_profile_diagnostic(
+                "pagination_stopped",
+                diagnostic_id=diagnostic_id,
+                url=source.url,
+                source_type=source.source_type,
+                reason="thin_continuation_page",
+                locally_visible_characters=len(text),
+                remaining_pages=len(pending) - len(processed_sources),
+            )
+            break
+        try:
+            source_proposal = (
+                extract_google_scholar_rows(html, label)
+                if source.source_type == "google_scholar" and local_fetch == "succeeded"
+                else None
+            ) or extractor.extract_url(source.url, text, label)
+        except Exception as exc:
+            write_profile_diagnostic(
+                "page_failed",
+                diagnostic_id=diagnostic_id,
+                url=source.url,
+                source_type=source.source_type,
+                stage="extraction",
+                error_type=type(exc).__name__,
+                error=str(exc)[:1_000],
+                elapsed_ms=round((monotonic() - started) * 1_000),
+            )
+            raise
         if not source_proposal.assets:
             source_proposal.warnings.append(
                 "This section returned no extractable assets. For research outputs, add the "
@@ -331,11 +457,33 @@ def create_multi_url_ingestion(
         processed_sources.append(source)
         raw_offset = parse_qs(urlparse(source.url).query).get("cstart", ["0"])[0]
         scholar_offset = int(raw_offset) if raw_offset.isdigit() else 0
+        write_profile_diagnostic(
+            "page_completed",
+            diagnostic_id=diagnostic_id,
+            url=source.url,
+            source_type=source.source_type,
+            label=label,
+            local_fetch=local_fetch,
+            local_fetch_error=local_error,
+            locally_visible_characters=len(text),
+            extraction_diagnostics=source_proposal.source_diagnostics,
+            proposed_assets=len(source_proposal.assets),
+            warnings=source_proposal.warnings,
+            elapsed_ms=round((monotonic() - started) * 1_000),
+        )
         if (
             source.source_type == "google_scholar"
             and scholar_offset > 0
             and not source_proposal.assets
         ):
+            write_profile_diagnostic(
+                "pagination_stopped",
+                diagnostic_id=diagnostic_id,
+                url=source.url,
+                source_type=source.source_type,
+                reason="empty_continuation_page",
+                remaining_pages=len(pending) - len(processed_sources),
+            )
             break
     proposal = merge_source_proposals(extracted)
     proposal.source_diagnostics = {
@@ -354,6 +502,17 @@ def create_multi_url_ingestion(
     )
     session.add(run)
     session.flush()
+    write_profile_diagnostic(
+        "ingestion_completed",
+        diagnostic_id=diagnostic_id,
+        ingestion_run_id=str(run.id),
+        provider=extractor.name,
+        pages_discovered=len(pending),
+        pages_processed=len(processed_sources),
+        merged_assets=len(proposal.assets),
+        coverage=proposal.coverage,
+        warnings=proposal.warnings,
+    )
     settings = get_settings()
     session.add(
         AiOperation(
