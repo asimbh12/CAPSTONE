@@ -21,6 +21,11 @@ reprocessing and suppression controls, plus additive AI-managed asset tags and t
 Multiple typed public URLs can be analysed as one source collection with cross-source
 deduplication, conflict warnings, coverage summaries, and source-level evidence provenance.
 
+Stage 5 adds an **Opportunities** workspace for jobs, grants, fellowships, awards, leadership,
+board, media, and custom opportunities. It provides lifecycle tracking, deadline urgency,
+next actions, filters, and reproducible priority rankings. Each assessment preserves its
+inputs and scoring algorithm version; urgency is deliberately displayed separately.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -36,6 +41,8 @@ See the [Stage 3 testing guide](docs/development/stage-3-testing.md) for the int
 career-asset and data-safety workflow.
 See the [Stage 4 onboarding guide](docs/development/stage-4-onboarding.md) for CV and public-link
 ingestion.
+See the [Stage 5 testing guide](docs/development/stage-5-opportunities.md) for opportunity
+tracking and prioritisation.
 
 ## Documentation
 

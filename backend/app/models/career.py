@@ -41,6 +41,19 @@ class GoalHorizon(StrEnum):
     LONG = "long_term"
 
 
+class OpportunityStatus(StrEnum):
+    DISCOVERED = "discovered"
+    REVIEWING = "reviewing"
+    PLANNED = "planned"
+    PURSUING = "pursuing"
+    SUBMITTED = "submitted"
+    WON = "won"
+    LOST = "lost"
+    DECLINED = "declined"
+    EXPIRED = "expired"
+    ARCHIVED = "archived"
+
+
 class AssetThemeLink(SQLModel, table=True):
     __tablename__ = "asset_theme_links"
     __table_args__ = (UniqueConstraint("asset_id", "theme_id"),)
@@ -139,6 +152,43 @@ class CareerAsset(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     archived_at: datetime | None = None
+
+
+class Opportunity(SQLModel, table=True):
+    __tablename__ = "opportunities"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    title: str = Field(max_length=300, index=True)
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    opportunity_type: str = Field(max_length=100, index=True)
+    organisation_id: UUID | None = Field(default=None, foreign_key="organisations.id")
+    url: str = Field(default="", max_length=1000)
+    opening_date: date | None = None
+    closing_date: date | None = Field(default=None, index=True)
+    status: str = Field(default=OpportunityStatus.DISCOVERED.value, max_length=20, index=True)
+    owner: str = Field(default="", max_length=200)
+    next_action: str = Field(default="", max_length=500)
+    notes: str = Field(default="", sa_column=Column(Text, nullable=False))
+    source: str = Field(default=Provenance.USER.value, max_length=50)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+    archived_at: datetime | None = None
+
+
+class OpportunityAssessment(SQLModel, table=True):
+    __tablename__ = "opportunity_assessments"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    opportunity_id: UUID = Field(foreign_key="opportunities.id", index=True, ondelete="CASCADE")
+    algorithm_version: str = Field(default="opportunity-priority-v1", max_length=50)
+    strategic_value: int
+    probability: int
+    effort: int
+    raw_score: float
+    normalized_score: float
+    input_source: str = Field(default=Provenance.USER.value, max_length=20)
+    explanation: str = Field(default="", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
 
 
 class Document(SQLModel, table=True):

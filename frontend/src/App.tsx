@@ -6,6 +6,7 @@ import { AssetsPage } from './pages/AssetsPage'
 import { DataPage } from './pages/DataPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { OpportunitiesPage } from './pages/OpportunitiesPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { TimelinePage } from './pages/TimelinePage'
 
@@ -16,6 +17,7 @@ export function App() {
     onboarding: <OnboardingPage />,
     assets: <AssetsPage />,
     timeline: <TimelinePage />,
+    opportunities: <OpportunitiesPage />,
     profile: <ProfilePage />,
     data: <DataPage />,
   }[page] ?? <Alert severity="error">Unknown page.</Alert>

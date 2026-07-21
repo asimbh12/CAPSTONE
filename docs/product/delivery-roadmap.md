@@ -51,6 +51,11 @@ deduplication, conflict detection, coverage reporting, and source-level provenan
 - Validated scoring inputs and versioned deterministic scoring.
 - Rankings, filters, urgency, explanations, next actions, and dashboard summaries.
 
+Stage 5 delivered: opportunity creation/editing and lifecycle management, organisation and
+public-source links, validated 1–5 strategic value / 0–100 probability / 1–5 effort inputs,
+versioned assessment history, deterministic ranking, deadline urgency, score explanations,
+search and filters, archive handling, next actions, audit events, and overview summaries.
+
 ## Stage 6 — Targets and readiness
 
 - User-defined targets and weighted criteria.

@@ -201,3 +201,22 @@ export interface AssetEnrichmentResult {
   summary: string
   association_suggestions: string[]
 }
+
+export interface OpportunityAssessment {
+  id: string; algorithm_version: string; strategic_value: number; probability: number; effort: number
+  raw_score: number; normalized_score: number; input_source: 'user' | 'ai'; explanation: string; created_at: string
+}
+export interface OpportunityUrgency { level: string; days_remaining: number | null; label: string }
+export interface Opportunity {
+  id: string; title: string; description: string; opportunity_type: string; organisation_id: string | null
+  organisation_name: string | null; url: string; opening_date: string | null; closing_date: string | null
+  status: string; owner: string; next_action: string; notes: string; source: string
+  created_at: string; updated_at: string; archived_at: string | null
+  assessment: OpportunityAssessment; urgency: OpportunityUrgency
+}
+export interface OpportunityInput {
+  title: string; description: string; opportunity_type: string; organisation_id: string | null; url: string
+  opening_date: string | null; closing_date: string | null; status: string; owner: string; next_action: string
+  notes: string; source: string; strategic_value: number; probability: number; effort: number; score_input_source: 'user' | 'ai'
+}
+export interface OpportunitySummary { active: number; pursuing: number; closing_soon: number; top_opportunity: Opportunity | null }

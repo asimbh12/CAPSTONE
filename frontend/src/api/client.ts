@@ -12,6 +12,10 @@ import type {
   AiProviderStatus,
   AssetEnrichmentResult,
   Organisation,
+  Opportunity,
+  OpportunityAssessment,
+  OpportunityInput,
+  OpportunitySummary,
   Profile,
   ProfileInput,
   PublicProfileSource,
@@ -108,6 +112,12 @@ export const careerApi = {
   reprocessIngestion: (id: string) => request<IngestionRun>(`/ingestions/${id}/reprocess`, { method: 'POST' }),
   suppressIngestion: (id: string) => request<IngestionRun>(`/ingestions/${id}/suppress`, { method: 'POST' }),
   enrichAsset: (id: string) => request<AssetEnrichmentResult>(`/ingestions/assets/${id}/enrich`, { method: 'POST' }),
+  listOpportunities: (params = new URLSearchParams()) => request<{ items: Opportunity[]; total: number }>(`/opportunities?${params.toString()}`),
+  opportunitySummary: () => request<OpportunitySummary>('/opportunities/summary'),
+  createOpportunity: (payload: OpportunityInput) => request<Opportunity>('/opportunities', { method: 'POST', body: JSON.stringify(payload) }),
+  updateOpportunity: (id: string, payload: OpportunityInput) => request<Opportunity>(`/opportunities/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  archiveOpportunity: (id: string) => request<Opportunity>(`/opportunities/${id}/archive`, { method: 'POST' }),
+  opportunityAssessments: (id: string) => request<OpportunityAssessment[]>(`/opportunities/${id}/assessments`),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`

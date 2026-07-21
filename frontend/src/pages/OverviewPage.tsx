@@ -2,18 +2,20 @@ import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import FolderCopyOutlined from '@mui/icons-material/FolderCopyOutlined'
 import FlagOutlined from '@mui/icons-material/FlagOutlined'
 import TimelineOutlined from '@mui/icons-material/TimelineOutlined'
+import WorkOutlineOutlined from '@mui/icons-material/WorkOutlineOutlined'
 import { Alert, Box, Card, CardContent, CircularProgress, Grid, Stack, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 
 import { careerApi } from '../api/client'
 import { PageHeader } from '../components/PageHeader'
-import type { CareerAsset, Goal, Profile, TimelineItem } from '../types/career'
+import type { CareerAsset, Goal, OpportunitySummary, Profile, TimelineItem } from '../types/career'
 
 interface OverviewState {
   profile: Profile | null
   assets: CareerAsset[]
   goals: Goal[]
   timeline: TimelineItem[]
+  opportunities: OpportunitySummary
 }
 
 export function OverviewPage() {
@@ -26,8 +28,9 @@ export function OverviewPage() {
       careerApi.listAssets(new URLSearchParams({ asset_status: 'active' })),
       careerApi.listGoals(),
       careerApi.timeline(),
+      careerApi.opportunitySummary(),
     ])
-      .then(([profile, assets, goals, timeline]) => setState({ profile, assets: assets.items, goals, timeline }))
+      .then(([profile, assets, goals, timeline, opportunities]) => setState({ profile, assets: assets.items, goals, timeline, opportunities }))
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load overview'))
   }, [])
 
@@ -54,8 +57,10 @@ export function OverviewPage() {
           { label: 'Asset categories', value: categoryCount, icon: <AutoAwesomeOutlined /> },
           { label: 'Strategic goals', value: state.goals.length, icon: <FlagOutlined /> },
           { label: 'Timeline events', value: state.timeline.length, icon: <TimelineOutlined /> },
+          { label: 'Open opportunities', value: state.opportunities.active, icon: <WorkOutlineOutlined /> },
+          { label: 'Closing soon', value: state.opportunities.closing_soon, icon: <WorkOutlineOutlined /> },
         ].map((metric) => (
-          <Grid key={metric.label} size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid key={metric.label} size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
             <Card>
               <CardContent>
                 <Stack direction="row" justifyContent="space-between" color="primary.main">
@@ -90,4 +95,3 @@ export function OverviewPage() {
     </>
   )
 }
-

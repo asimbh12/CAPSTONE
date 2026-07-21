@@ -21,6 +21,7 @@ describe('App', () => {
         if (url.endsWith('/health')) return jsonResponse({ status: 'ok', service: 'api', version: '0.1.0', environment: 'test' })
         if (url.includes('/assets?')) return jsonResponse({ items: [], total: 0 })
         if (url.endsWith('/profile')) return jsonResponse(null)
+        if (url.endsWith('/opportunities/summary')) return jsonResponse({ active: 0, pursuing: 0, closing_soon: 0, top_opportunity: null })
         if (url.endsWith('/goals') || url.endsWith('/themes') || url.endsWith('/organisations') || url.endsWith('/timeline')) return jsonResponse([])
         return Promise.reject(new Error(`Unexpected request: ${url}`))
       }),

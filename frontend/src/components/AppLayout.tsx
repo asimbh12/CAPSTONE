@@ -4,6 +4,7 @@ import FolderCopyOutlined from '@mui/icons-material/FolderCopyOutlined'
 import InsightsOutlined from '@mui/icons-material/InsightsOutlined'
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import TimelineOutlined from '@mui/icons-material/TimelineOutlined'
+import WorkOutlineOutlined from '@mui/icons-material/WorkOutlineOutlined'
 import {
   AppBar,
   Box,
@@ -18,7 +19,7 @@ import type { ReactNode } from 'react'
 
 import { useApiHealth } from '../hooks/useApiHealth'
 
-export type PageKey = 'overview' | 'onboarding' | 'assets' | 'timeline' | 'profile' | 'data'
+export type PageKey = 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'profile' | 'data'
 
 interface AppLayoutProps {
   page: PageKey
@@ -31,6 +32,7 @@ const navigation: Array<{ key: PageKey; label: string; icon: ReactNode }> = [
   { key: 'onboarding', label: 'Import career', icon: <AutoAwesomeOutlined fontSize="small" /> },
   { key: 'assets', label: 'Career assets', icon: <FolderCopyOutlined fontSize="small" /> },
   { key: 'timeline', label: 'Timeline', icon: <TimelineOutlined fontSize="small" /> },
+  { key: 'opportunities', label: 'Opportunities', icon: <WorkOutlineOutlined fontSize="small" /> },
   { key: 'profile', label: 'Profile & goals', icon: <AccountCircleOutlined fontSize="small" /> },
   { key: 'data', label: 'Data safety', icon: <BackupOutlined fontSize="small" /> },
 ]
