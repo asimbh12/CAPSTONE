@@ -29,13 +29,19 @@ from app.schemas.ingestion import (
     ApplyIngestionResult,
     AssetEnrichmentResult,
     CareerExtractionProposal,
+    ProposedAsset,
+    PublicProfileSource,
 )
 from app.services.ai import get_career_extractor
 from app.services.audit import record_audit
 
 
 def ingestion_read(run: IngestionRun) -> dict[str, object]:
-    return {**run.model_dump(exclude={"proposal_json"}), "proposal": json.loads(run.proposal_json)}
+    return {
+        **run.model_dump(exclude={"proposal_json", "source_manifest_json"}),
+        "proposal": json.loads(run.proposal_json),
+        "source_manifest": json.loads(run.source_manifest_json),
+    }
 
 
 def create_ingestion(
@@ -47,6 +53,7 @@ def create_ingestion(
     policy: AiHandlingPolicy,
     document_id: UUID | None = None,
     source_url: str = "",
+    source_manifest: list[PublicProfileSource] | None = None,
 ) -> IngestionRun:
     if not text.strip():
         raise HTTPException(status_code=422, detail="No readable text was found in this source")
@@ -57,6 +64,7 @@ def create_ingestion(
             source_type=source_type,
             source_label=source_label,
             source_url=source_url,
+            source_manifest_json=json.dumps([item.model_dump() for item in source_manifest or []]),
             document_id=document_id,
             ai_handling_policy=policy.value,
             provider=extractor.name,
@@ -92,10 +100,146 @@ def create_ingestion(
     return run
 
 
+def merge_source_proposals(
+    items: list[tuple[PublicProfileSource, str, CareerExtractionProposal]],
+) -> CareerExtractionProposal:
+    merged = CareerExtractionProposal()
+    profile_fields = ("name", "current_title", "current_organisation", "career_narrative")
+    asset_index: dict[tuple[str, int | None], ProposedAsset] = {}
+    for source, label, proposal in items:
+        source_name = f"{source.source_type}: {label}"
+        for field in profile_fields:
+            value = getattr(proposal.profile, field).strip()
+            if not value:
+                continue
+            current = getattr(merged.profile, field).strip()
+            merged.profile.field_sources.setdefault(field, []).append(source_name)
+            if not current:
+                setattr(merged.profile, field, value)
+            elif current.casefold() != value.casefold():
+                merged.conflicts.append(
+                    f"Conflicting {field.replace('_', ' ')} values from multiple sources; "
+                    f"review the retained value from {merged.profile.field_sources[field][0]}."
+                )
+        for asset in proposal.assets:
+            key = (
+                asset.title.strip().casefold(),
+                asset.start_date.year if asset.start_date else None,
+            )
+            existing = asset_index.get(key)
+            if existing is None:
+                asset.source_labels = [source_name]
+                asset.source_urls = [source.url]
+                asset_index[key] = asset
+                merged.assets.append(asset)
+            else:
+                existing.source_labels.append(source_name)
+                existing.source_urls.append(source.url)
+                existing.tags = list(dict.fromkeys([*existing.tags, *asset.tags]))
+                existing.themes = list(dict.fromkeys([*existing.themes, *asset.themes]))
+                if not existing.description and asset.description:
+                    existing.description = asset.description
+                if not existing.organisation and asset.organisation:
+                    existing.organisation = asset.organisation
+        merged.themes.extend(proposal.themes)
+        merged.warnings.extend(f"{source_name}: {warning}" for warning in proposal.warnings)
+        merged.coverage[source.source_type] = merged.coverage.get(source.source_type, 0) + len(
+            proposal.assets
+        )
+    merged.themes = list(dict.fromkeys(merged.themes))
+    merged.conflicts = list(dict.fromkeys(merged.conflicts))
+    return merged
+
+
+def create_multi_url_ingestion(
+    session: Session,
+    *,
+    sources: list[PublicProfileSource],
+    policy: AiHandlingPolicy,
+) -> IngestionRun:
+    extractor = get_career_extractor(policy)
+    extracted: list[tuple[PublicProfileSource, str, CareerExtractionProposal]] = []
+    input_characters = 0
+    for source in sources:
+        label, text = fetch_public_page(source.url)
+        input_characters += len(text)
+        extracted.append((source, label, extractor.extract(text, label)))
+    proposal = merge_source_proposals(extracted)
+    run = IngestionRun(
+        source_type="url_collection",
+        source_label=f"Career source collection ({len(sources)} URLs)",
+        source_manifest_json=json.dumps([item.model_dump() for item in sources]),
+        ai_handling_policy=policy.value,
+        provider=extractor.name,
+        proposal_json=proposal.model_dump_json(),
+    )
+    session.add(run)
+    session.flush()
+    settings = get_settings()
+    session.add(
+        AiOperation(
+            operation="extract_multi_source_career",
+            entity_type="ingestion_run",
+            entity_id=str(run.id),
+            provider=extractor.name,
+            model=settings.gemini_model if extractor.name == "gemini" else "",
+            status="completed",
+            input_characters=input_characters,
+            output_characters=len(run.proposal_json),
+        )
+    )
+    record_audit(
+        session,
+        entity_type="ingestion_run",
+        entity_id=run.id,
+        action="multi_source_proposed",
+        source=Provenance.AI.value if extractor.name == "gemini" else Provenance.RULE.value,
+        details={"source_count": len(sources), "provider": extractor.name},
+    )
+    return run
+
+
 def reprocess_ingestion(session: Session, run: IngestionRun) -> IngestionRun:
     if run.status == "applied":
         raise HTTPException(status_code=409, detail="Applied ingestions cannot be reprocessed")
     policy = AiHandlingPolicy(run.ai_handling_policy)
+    manifest = [
+        PublicProfileSource.model_validate(item) for item in json.loads(run.source_manifest_json)
+    ]
+    if manifest:
+        extractor = get_career_extractor(policy)
+        extracted: list[tuple[PublicProfileSource, str, CareerExtractionProposal]] = []
+        input_characters = 0
+        for source in manifest:
+            label, source_text = fetch_public_page(source.url)
+            input_characters += len(source_text)
+            extracted.append((source, label, extractor.extract(source_text, label)))
+        run.provider = extractor.name
+        run.proposal_json = merge_source_proposals(extracted).model_dump_json()
+        run.status = "ready_for_review"
+        run.error_message = ""
+        session.add(run)
+        settings = get_settings()
+        session.add(
+            AiOperation(
+                operation="reprocess_multi_source_career",
+                entity_type="ingestion_run",
+                entity_id=str(run.id),
+                provider=extractor.name,
+                model=settings.gemini_model if extractor.name == "gemini" else "",
+                status="completed",
+                input_characters=input_characters,
+                output_characters=len(run.proposal_json),
+            )
+        )
+        record_audit(
+            session,
+            entity_type="ingestion_run",
+            entity_id=run.id,
+            action="reprocessed",
+            source=Provenance.AI.value if extractor.name == "gemini" else Provenance.RULE.value,
+        )
+        return run
     if run.document_id:
         document = session.get(Document, run.document_id)
         if document is None:
@@ -334,16 +478,20 @@ def apply_ingestion(
                         provenance=Provenance.AI.value,
                     )
                 )
-        session.add(
-            EvidenceItem(
-                asset_id=asset.id,
-                document_id=run.document_id,
-                title=run.source_label[:250],
-                description="Source used during reviewed career ingestion.",
-                source_url=run.source_url,
-                source_kind=Provenance.EXTRACTED.value,
+        evidence_sources = list(zip(item.source_labels, item.source_urls, strict=False))
+        if not evidence_sources:
+            evidence_sources = [(run.source_label, run.source_url)]
+        for evidence_label, evidence_url in evidence_sources:
+            session.add(
+                EvidenceItem(
+                    asset_id=asset.id,
+                    document_id=run.document_id,
+                    title=evidence_label[:250],
+                    description="Source used during reviewed career ingestion.",
+                    source_url=evidence_url,
+                    source_kind=Provenance.EXTRACTED.value,
+                )
             )
-        )
     run.proposal_json = proposal.model_dump_json()
     run.status = "applied"
     run.applied_at = datetime.now(UTC)

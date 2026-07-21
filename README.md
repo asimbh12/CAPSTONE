@@ -18,6 +18,8 @@ proposal before filling blank profile fields and creating evidence-backed career
 JSON remains available for technical portability but is not required for onboarding.
 The enrichment workspace also provides provider visibility, ingestion history, correction,
 reprocessing and suppression controls, plus additive AI-managed asset tags and themes.
+Multiple typed public URLs can be analysed as one source collection with cross-source
+deduplication, conflict warnings, coverage summaries, and source-level evidence provenance.
 
 ## Run locally
 

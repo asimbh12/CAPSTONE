@@ -42,6 +42,8 @@ Exit condition: the owner approves the Stage 1 baseline and unresolved questions
 Stage 4 delivered: document/link onboarding, explicit provider status, reviewed apply, ingestion
 history, correction/reprocessing/suppression, additive asset enrichment, audit events, and
 privacy-preserving AI operation telemetry.
+Multi-source onboarding adds typed URL collections, consolidated review, cross-source
+deduplication, conflict detection, coverage reporting, and source-level provenance.
 
 ## Stage 5 — Opportunity prioritisation
 

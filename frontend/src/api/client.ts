@@ -14,6 +14,7 @@ import type {
   Organisation,
   Profile,
   ProfileInput,
+  PublicProfileSource,
   Theme,
   TimelineItem,
 } from '../types/career'
@@ -90,6 +91,11 @@ export const careerApi = {
     request<IngestionRun>('/ingestions/urls', {
       method: 'POST',
       body: JSON.stringify({ url, ai_handling_policy: aiHandlingPolicy, confirmed_public_information: true }),
+    }),
+  ingestUrlCollection: (sources: PublicProfileSource[], aiHandlingPolicy: DocumentRecord['ai_handling_policy']) =>
+    request<IngestionRun>('/ingestions/url-collections', {
+      method: 'POST',
+      body: JSON.stringify({ sources, ai_handling_policy: aiHandlingPolicy, confirmed_public_information: true }),
     }),
   applyIngestion: (id: string, proposal: IngestionProposal) =>
     request<ApplyIngestionResult>(`/ingestions/${id}/apply`, {

@@ -2,7 +2,8 @@
 
 1. Open <http://127.0.0.1:5173> and choose **Import career**.
 2. Select a public-information CV in PDF, DOCX, or TXT format, or enter an accessible public
-   professional URL.
+   professional URL. For broader coverage, add two to ten typed URLs such as an institutional
+   profile, ORCID, Google Scholar, personal website, or media profile and analyse them together.
 3. Choose **Local only** for deterministic extraction, or **AI allowed** when Gemini has been
    configured and the content is eligible to leave the computer.
 4. Confirm the public-information declaration and analyse the source.
@@ -15,6 +16,11 @@ manual corrections, reprocessing an eligible source, and suppressing an unwanted
 Open a career asset and choose **AI enrich** to merge derived tags and themes without modifying
 the user-authored title, description, dates, role, or impact statement. Provider operations record
 status and character counts for troubleshooting without logging source bodies or API keys.
+
+Multi-source analysis extracts each URL independently and then creates one consolidated proposal.
+The review shows coverage by source type, source labels for each proposed asset, deduplicated
+overlaps, and conflicts between profile values. Applying the proposal creates separate evidence
+links back to every supporting public source. Reprocessing repeats the entire saved URL collection.
 
 Existing user-authored profile values are never overwritten. Duplicate asset titles are skipped.
 Original uploaded documents remain under the local `data/originals` directory and SQLite stores

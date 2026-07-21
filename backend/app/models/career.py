@@ -192,6 +192,7 @@ class IngestionRun(SQLModel, table=True):
     source_type: str = Field(max_length=30, index=True)
     source_label: str = Field(max_length=500)
     source_url: str = Field(default="", max_length=1_000)
+    source_manifest_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
     document_id: UUID | None = Field(default=None, foreign_key="documents.id")
     ai_handling_policy: str = Field(default=AiHandlingPolicy.LOCAL_ONLY.value, max_length=20)
     provider: str = Field(default="deterministic", max_length=50)

@@ -143,13 +143,22 @@ export interface ProposedAsset {
   tags: string[]
   themes: string[]
   include: boolean
+  source_labels: string[]
+  source_urls: string[]
 }
 
 export interface IngestionProposal {
-  profile: Pick<ProfileInput, 'name' | 'current_title' | 'current_organisation' | 'career_narrative'>
+  profile: Pick<ProfileInput, 'name' | 'current_title' | 'current_organisation' | 'career_narrative'> & { field_sources: Record<string, string[]> }
   assets: ProposedAsset[]
   themes: string[]
   warnings: string[]
+  conflicts: string[]
+  coverage: Record<string, number>
+}
+
+export interface PublicProfileSource {
+  url: string
+  source_type: string
 }
 
 export interface IngestionRun {
@@ -157,6 +166,7 @@ export interface IngestionRun {
   source_type: string
   source_label: string
   source_url: string
+  source_manifest: PublicProfileSource[]
   document_id: string | null
   ai_handling_policy: DocumentRecord['ai_handling_policy']
   provider: string

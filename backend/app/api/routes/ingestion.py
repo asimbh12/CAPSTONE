@@ -15,12 +15,14 @@ from app.schemas.ingestion import (
     AssetEnrichmentResult,
     CareerExtractionProposal,
     IngestionRead,
+    MultiUrlIngestionRequest,
     UrlIngestionRequest,
 )
 from app.services.documents import store_document
 from app.services.ingestion import (
     apply_ingestion,
     create_ingestion,
+    create_multi_url_ingestion,
     enrich_asset,
     fetch_public_page,
     ingestion_read,
@@ -102,6 +104,24 @@ def ingest_url(payload: UrlIngestionRequest, session: SessionDependency) -> dict
         source_url=payload.url,
         text=text,
         policy=payload.ai_handling_policy,
+    )
+    session.commit()
+    session.refresh(run)
+    return ingestion_read(run)
+
+
+@router.post("/url-collections", response_model=IngestionRead, status_code=status.HTTP_201_CREATED)
+def ingest_url_collection(
+    payload: MultiUrlIngestionRequest, session: SessionDependency
+) -> dict[str, object]:
+    if not payload.confirmed_public_information:
+        raise HTTPException(
+            status_code=422, detail="Confirm that all URLs contain public professional information"
+        )
+    if len({item.url for item in payload.sources}) != len(payload.sources):
+        raise HTTPException(status_code=422, detail="Remove duplicate URLs before analysis")
+    run = create_multi_url_ingestion(
+        session, sources=payload.sources, policy=payload.ai_handling_policy
     )
     session.commit()
     session.refresh(run)

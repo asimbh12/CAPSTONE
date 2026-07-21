@@ -9,6 +9,7 @@ from app.schemas.ingestion import (
     CareerExtractionProposal,
     ProposedAsset,
     ProposedProfile,
+    ProviderCareerExtractionProposal,
 )
 
 
@@ -98,11 +99,14 @@ class GeminiCareerExtractor(CareerExtractor):
             contents=prompt,
             config={
                 "response_mime_type": "application/json",
-                "response_schema": CareerExtractionProposal,
+                "response_schema": ProviderCareerExtractionProposal,
                 "temperature": 0,
             },
         )
-        return CareerExtractionProposal.model_validate_json(response.text or "{}")
+        provider_result = ProviderCareerExtractionProposal.model_validate_json(
+            response.text or "{}"
+        )
+        return CareerExtractionProposal.model_validate(provider_result.model_dump())
 
     def enrich(self, text: str) -> AssetEnrichment:
         response = self.client.models.generate_content(

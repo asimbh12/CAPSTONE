@@ -1,5 +1,13 @@
 from fastapi.testclient import TestClient
 
+from app.schemas.ingestion import (
+    CareerExtractionProposal,
+    ProposedAsset,
+    ProposedProfile,
+    PublicProfileSource,
+)
+from app.services.ingestion import merge_source_proposals
+
 
 def test_document_ingestion_reviews_and_populates_without_overwriting_user_facts(
     client: TestClient,
@@ -92,3 +100,34 @@ def test_asset_enrichment_adds_only_derived_fields(client: TestClient) -> None:
     assert updated["title"] == asset["title"]
     assert updated["description"] == asset["description"]
     assert updated["tags"]
+
+
+def test_multi_source_merge_deduplicates_and_preserves_provenance() -> None:
+    institutional = PublicProfileSource(
+        url="https://example.org/profile", source_type="institutional_profile"
+    )
+    scholar = PublicProfileSource(
+        url="https://scholar.example.org/profile", source_type="google_scholar"
+    )
+    first = CareerExtractionProposal(
+        profile=ProposedProfile(name="Example Professional", current_title="Director"),
+        assets=[ProposedAsset(title="Research leadership", start_date="2020-01-01")],
+    )
+    second = CareerExtractionProposal(
+        profile=ProposedProfile(name="Example Professional", current_title="Professor"),
+        assets=[
+            ProposedAsset(
+                title="Research leadership",
+                start_date="2020-01-01",
+                themes=["Research impact"],
+            )
+        ],
+    )
+    merged = merge_source_proposals(
+        [(institutional, "Institution", first), (scholar, "Scholar", second)]
+    )
+    assert len(merged.assets) == 1
+    assert len(merged.assets[0].source_urls) == 2
+    assert merged.assets[0].themes == ["Research impact"]
+    assert merged.conflicts
+    assert merged.coverage == {"institutional_profile": 1, "google_scholar": 1}
