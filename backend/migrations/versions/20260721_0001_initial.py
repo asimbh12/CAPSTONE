@@ -4,6 +4,7 @@ Revision ID: 20260721_0001
 Revises:
 Create Date: 2026-07-21
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -27,4 +28,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("system_metadata")
-

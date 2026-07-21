@@ -1,2 +1,1 @@
 """CAPSTONE API package."""
-

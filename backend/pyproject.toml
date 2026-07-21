@@ -11,6 +11,9 @@ dependencies = [
   "alembic>=1.16,<2",
   "fastapi>=0.116,<1",
   "pydantic-settings>=2.10,<3",
+  "pypdf>=6.0,<7",
+  "python-docx>=1.2,<2",
+  "python-multipart>=0.0.20,<1",
   "sqlmodel>=0.0.24,<0.1",
   "uvicorn[standard]>=0.35,<1",
 ]
@@ -28,12 +31,14 @@ dev = [
 packages = ["app"]
 
 [tool.pytest.ini_options]
-addopts = "--strict-config --strict-markers -q"
+addopts = "--strict-config --strict-markers --basetemp=C:/tmp/capstone-pytest -q"
 testpaths = ["tests"]
+cache_dir = "C:/tmp/capstone-tool-cache/pytest"
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+cache-dir = "C:/tmp/capstone-tool-cache/ruff"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
@@ -41,5 +46,4 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-plugins = ["pydantic.mypy"]
-
+cache_dir = "C:/tmp/capstone-tool-cache/mypy"

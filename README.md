@@ -8,9 +8,9 @@ The first release is a single-user Windows web application with no authenticatio
 
 ## Current status
 
-Stage 2 provides the runnable application foundation: a React web shell, FastAPI service,
-SQLite/Alembic persistence, Docker Compose runtime, and automated test scaffolding. Career
-asset workflows begin in Stage 3.
+Stage 3 provides the first complete career-intelligence workflow: profile, goals, themes,
+career assets, evidence and local documents, search/filtering, timeline generation, versioned
+JSON import/export, audit events, and coordinated local backups.
 
 ## Run locally
 
@@ -22,6 +22,9 @@ docker compose up --build
 
 Then open <http://127.0.0.1:5173>. See the
 [development guide](docs/development/getting-started.md) for native setup and verification.
+
+See the [Stage 3 testing guide](docs/development/stage-3-testing.md) for the interactive
+career-asset and data-safety workflow.
 
 ## Documentation
 

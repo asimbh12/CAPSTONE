@@ -9,9 +9,7 @@ def _error_payload(code: str, message: str, details: Any = None) -> dict[str, An
     return {"error": {"code": code, "message": message, "details": details}}
 
 
-async def validation_exception_handler(
-    _: Request, exc: Exception
-) -> JSONResponse:
+async def validation_exception_handler(_: Request, exc: Exception) -> JSONResponse:
     if not isinstance(exc, RequestValidationError):
         raise exc
     return JSONResponse(

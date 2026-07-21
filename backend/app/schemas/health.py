@@ -13,4 +13,3 @@ class HealthResponse(BaseModel):
 class ReadinessResponse(BaseModel):
     status: Literal["ready"]
     checks: dict[str, Literal["ok"]]
-

@@ -18,4 +18,3 @@ def test_readiness_checks_database(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ready", "checks": {"database": "ok"}}
-

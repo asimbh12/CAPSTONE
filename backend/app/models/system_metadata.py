@@ -9,4 +9,3 @@ class SystemMetadata(SQLModel, table=True):
     key: str = Field(primary_key=True, max_length=100)
     value: str
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), nullable=False)
-
