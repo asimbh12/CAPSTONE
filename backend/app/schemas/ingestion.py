@@ -70,3 +70,40 @@ class ApplyIngestionResult(IngestionModel):
     assets_skipped: int
     organisations_created: int
     themes_created: int
+
+
+class AiProviderStatus(IngestionModel):
+    configured_provider: str
+    active_provider: str
+    model: str
+    gemini_key_configured: bool
+
+
+class AiOperationRead(IngestionModel):
+    id: UUID
+    operation: str
+    entity_type: str
+    entity_id: str
+    provider: str
+    model: str
+    status: str
+    input_characters: int
+    output_characters: int
+    error_message: str
+    created_at: datetime
+
+
+class AssetEnrichment(IngestionModel):
+    tags: list[str] = Field(default_factory=list, max_length=30)
+    themes: list[str] = Field(default_factory=list, max_length=20)
+    summary: str = Field(default="", max_length=2_000)
+    association_suggestions: list[str] = Field(default_factory=list, max_length=20)
+
+
+class AssetEnrichmentResult(IngestionModel):
+    asset_id: UUID
+    provider: str
+    tags_added: list[str]
+    themes_added: list[str]
+    summary: str
+    association_suggestions: list[str]

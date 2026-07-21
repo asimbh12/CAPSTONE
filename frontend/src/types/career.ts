@@ -175,3 +175,19 @@ export interface ApplyIngestionResult {
   organisations_created: number
   themes_created: number
 }
+
+export interface AiProviderStatus {
+  configured_provider: string
+  active_provider: string
+  model: string
+  gemini_key_configured: boolean
+}
+
+export interface AssetEnrichmentResult {
+  asset_id: string
+  provider: string
+  tags_added: string[]
+  themes_added: string[]
+  summary: string
+  association_suggestions: string[]
+}

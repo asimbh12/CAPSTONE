@@ -39,6 +39,10 @@ Exit condition: the owner approves the Stage 1 baseline and unresolved questions
 - Structured tagging, theme extraction, association suggestions, and automatic enrichment.
 - Manual correction, suppression, reprocessing, usage/error handling, and deterministic test doubles.
 
+Stage 4 delivered: document/link onboarding, explicit provider status, reviewed apply, ingestion
+history, correction/reprocessing/suppression, additive asset enrichment, audit events, and
+privacy-preserving AI operation telemetry.
+
 ## Stage 5 — Opportunity prioritisation
 
 - Opportunity lifecycle and categories.

@@ -1,16 +1,18 @@
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined'
+import RefreshOutlined from '@mui/icons-material/RefreshOutlined'
+import SaveOutlined from '@mui/icons-material/SaveOutlined'
 import {
   Alert, Box, Button, Card, CardContent, Checkbox, FormControlLabel, Grid, MenuItem,
   Stack, TextField, Typography,
 } from '@mui/material'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { careerApi } from '../api/client'
 import { Feedback } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
-import type { IngestionRun } from '../types/career'
+import type { AiProviderStatus, IngestionRun } from '../types/career'
 
 type Policy = 'ai_allowed' | 'local_only' | 'redacted'
 
@@ -23,6 +25,14 @@ export function OnboardingPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [provider, setProvider] = useState<AiProviderStatus | null>(null)
+  const [history, setHistory] = useState<IngestionRun[]>([])
+
+  useEffect(() => {
+    void Promise.all([careerApi.providerStatus(), careerApi.listIngestions()])
+      .then(([status, runs]) => { setProvider(status); setHistory(runs) })
+      .catch(() => undefined)
+  }, [])
 
   async function analyseDocument() {
     if (!file) return
@@ -32,7 +42,7 @@ export function OnboardingPage() {
   async function analyseUrl() { await execute(() => careerApi.ingestUrl(url, policy)) }
   async function execute(action: () => Promise<IngestionRun>) {
     setBusy(true); setError(null)
-    try { setRun(await action()) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to analyse source') } finally { setBusy(false) }
+    try { const next = await action(); setRun(next); setHistory((items) => [next, ...items]) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to analyse source') } finally { setBusy(false) }
   }
   async function apply() {
     if (!run) return
@@ -46,6 +56,21 @@ export function OnboardingPage() {
   function updateProfile(field: keyof IngestionRun['proposal']['profile'], value: string) {
     if (run) setRun({ ...run, proposal: { ...run.proposal, profile: { ...run.proposal.profile, [field]: value } } })
   }
+  async function saveCorrections() {
+    if (!run) return
+    setBusy(true)
+    try { setRun(await careerApi.saveIngestionProposal(run.id, run.proposal)); setFeedback('Corrections saved.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save corrections') } finally { setBusy(false) }
+  }
+  async function reprocess() {
+    if (!run) return
+    setBusy(true)
+    try { const next = await careerApi.reprocessIngestion(run.id); setRun(next); setFeedback(`Reprocessed with ${next.provider}.`) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to reprocess source') } finally { setBusy(false) }
+  }
+  async function suppress() {
+    if (!run) return
+    setBusy(true)
+    try { setRun(await careerApi.suppressIngestion(run.id)); setFeedback('Proposal suppressed.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to suppress proposal') } finally { setBusy(false) }
+  }
   function updateAsset(index: number, changes: Partial<IngestionRun['proposal']['assets'][number]>) {
     if (!run) return
     const assets = [...run.proposal.assets]; assets[index] = { ...assets[index], ...changes }
@@ -55,6 +80,7 @@ export function OnboardingPage() {
   return <>
     <PageHeader eyebrow="DOCUMENT-LED ONBOARDING" title="Build from your career materials" description="Upload a CV or add a public professional page. CAPSTONE extracts a reviewable profile and career timeline proposal before anything is applied." />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+    {provider && <Alert severity={provider.active_provider === 'gemini' ? 'success' : 'warning'} sx={{ mb: 2 }}>Active analysis provider: <strong>{provider.active_provider}</strong>{provider.model ? ` · ${provider.model}` : ''}. Choosing “AI allowed” grants permission; it does not override this active provider.</Alert>}
     <Alert severity="info" sx={{ mb: 3 }}>JSON is not required. PDF, DOCX and TXT are supported. For LinkedIn, upload your profile PDF or data export rather than relying on automated scraping.</Alert>
     <Card sx={{ mb: 3 }}><CardContent><Grid container spacing={2} alignItems="center">
       <Grid size={{ xs: 12, md: 5 }}><Button component="label" fullWidth variant="outlined" startIcon={<UploadFileOutlined />}>{file?.name || 'Choose CV or career document'}<input hidden type="file" accept=".pdf,.docx,.txt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></Button></Grid>
@@ -63,7 +89,8 @@ export function OnboardingPage() {
       <Grid size={12}><FormControlLabel control={<Checkbox checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />} label="I confirm these sources contain only publicly available professional information." /></Grid>
       <Grid size={12}><Stack direction={{ xs: 'column', sm: 'row' }} gap={1.5}><Button variant="contained" disabled={!file || !confirmed || busy} onClick={() => void analyseDocument()} startIcon={<AutoAwesomeOutlined />}>Analyse document</Button><Button variant="outlined" disabled={!url || !confirmed || busy} onClick={() => void analyseUrl()}>Analyse public URL</Button></Stack></Grid>
     </Grid></CardContent></Card>
-    {run && <Card><CardContent><Stack direction="row" justifyContent="space-between"><Box><Typography variant="h5">Review extraction</Typography><Typography color="text.secondary">{run.source_label} · {run.provider}</Typography></Box><Button variant="contained" disabled={busy || run.status === 'applied'} onClick={() => void apply()}>Apply selected information</Button></Stack>
+    {!run && history.length > 0 && <Card sx={{ mb: 3 }}><CardContent><Typography variant="h5" mb={2}>Recent analyses</Typography><Stack gap={1}>{history.slice(0, 8).map((item) => <Button key={item.id} variant="outlined" onClick={() => setRun(item)} sx={{ justifyContent: 'space-between' }}><span>{item.source_label}</span><span>{item.provider} · {item.status}</span></Button>)}</Stack></CardContent></Card>}
+    {run && <Card><CardContent><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}><Box><Typography variant="h5">Review extraction</Typography><Typography color="text.secondary">{run.source_label} · {run.provider} · {run.status}</Typography></Box><Stack direction={{ xs: 'column', sm: 'row' }} gap={1}><Button startIcon={<SaveOutlined />} disabled={busy || run.status !== 'ready_for_review'} onClick={() => void saveCorrections()}>Save corrections</Button><Button startIcon={<RefreshOutlined />} disabled={busy || run.status === 'applied'} onClick={() => void reprocess()}>Reprocess</Button><Button color="warning" disabled={busy || run.status !== 'ready_for_review'} onClick={() => void suppress()}>Suppress</Button><Button variant="contained" disabled={busy || run.status !== 'ready_for_review'} onClick={() => void apply()}>Apply selected information</Button></Stack></Stack>
       {run.proposal.warnings.map((warning) => <Alert severity="warning" sx={{ mt: 2 }} key={warning}>{warning}</Alert>)}
       <Typography variant="h6" mt={3} mb={2}>Proposed profile fields</Typography><Grid container spacing={2}>
         {([['name','Name'],['current_title','Current title'],['current_organisation','Current organisation'],['career_narrative','Career narrative']] as const).map(([field,label]) => <Grid key={field} size={{ xs: 12, md: field === 'career_narrative' ? 12 : 4 }}><TextField fullWidth multiline={field === 'career_narrative'} label={label} value={run.proposal.profile[field]} onChange={(event) => updateProfile(field, event.target.value)} /></Grid>)}

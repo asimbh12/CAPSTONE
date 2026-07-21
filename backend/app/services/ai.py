@@ -4,14 +4,23 @@ from datetime import date
 
 from app.core.config import Settings, get_settings
 from app.models.career import AiHandlingPolicy
-from app.schemas.ingestion import CareerExtractionProposal, ProposedAsset, ProposedProfile
+from app.schemas.ingestion import (
+    AssetEnrichment,
+    CareerExtractionProposal,
+    ProposedAsset,
+    ProposedProfile,
+)
 
 
 class CareerExtractor(ABC):
     name: str
+    model: str = ""
 
     @abstractmethod
     def extract(self, text: str, source_label: str) -> CareerExtractionProposal: ...
+
+    @abstractmethod
+    def enrich(self, text: str) -> AssetEnrichment: ...
 
 
 class DeterministicCareerExtractor(CareerExtractor):
@@ -59,6 +68,13 @@ class DeterministicCareerExtractor(CareerExtractor):
             warnings=[warning],
         )
 
+    def enrich(self, text: str) -> AssetEnrichment:
+        words = re.findall(r"[A-Za-z][A-Za-z-]{3,}", text.lower())
+        excluded = {"with", "from", "that", "this", "were", "have", "public", "professional"}
+        terms = [word for word in words if word not in excluded]
+        ranked = sorted(set(terms), key=lambda item: (-terms.count(item), item))[:8]
+        return AssetEnrichment(tags=ranked, summary="Offline keyword enrichment completed.")
+
 
 class GeminiCareerExtractor(CareerExtractor):
     name = "gemini"
@@ -87,6 +103,23 @@ class GeminiCareerExtractor(CareerExtractor):
             },
         )
         return CareerExtractionProposal.model_validate_json(response.text or "{}")
+
+    def enrich(self, text: str) -> AssetEnrichment:
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=(
+                "Using only the supplied career asset facts, produce concise derived tags, "
+                "strategic themes, a factual summary, and non-binding association suggestions. "
+                "Do not invent metrics, outcomes, credentials, dates, or responsibilities.\n\n"
+                f"{text[:30_000]}"
+            ),
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": AssetEnrichment,
+                "temperature": 0,
+            },
+        )
+        return AssetEnrichment.model_validate_json(response.text or "{}")
 
 
 def get_career_extractor(policy: AiHandlingPolicy) -> CareerExtractor:

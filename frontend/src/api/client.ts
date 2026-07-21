@@ -9,6 +9,8 @@ import type {
   IngestionProposal,
   IngestionRun,
   ApplyIngestionResult,
+  AiProviderStatus,
+  AssetEnrichmentResult,
   Organisation,
   Profile,
   ProfileInput,
@@ -93,6 +95,13 @@ export const careerApi = {
     request<ApplyIngestionResult>(`/ingestions/${id}/apply`, {
       method: 'POST', body: JSON.stringify({ proposal }),
     }),
+  listIngestions: () => request<IngestionRun[]>('/ingestions'),
+  providerStatus: () => request<AiProviderStatus>('/ingestions/provider-status'),
+  saveIngestionProposal: (id: string, proposal: IngestionProposal) =>
+    request<IngestionRun>(`/ingestions/${id}/proposal`, { method: 'PUT', body: JSON.stringify(proposal) }),
+  reprocessIngestion: (id: string) => request<IngestionRun>(`/ingestions/${id}/reprocess`, { method: 'POST' }),
+  suppressIngestion: (id: string) => request<IngestionRun>(`/ingestions/${id}/suppress`, { method: 'POST' }),
+  enrichAsset: (id: string) => request<AssetEnrichmentResult>(`/ingestions/assets/${id}/enrich`, { method: 'POST' }),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`

@@ -11,18 +11,25 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.models.career import (
     AiHandlingPolicy,
+    AiOperation,
     AssetThemeLink,
     CareerAsset,
     CareerProfile,
+    Document,
     EvidenceItem,
     IngestionRun,
     Organisation,
     Provenance,
     Theme,
 )
-from app.schemas.ingestion import ApplyIngestionResult, CareerExtractionProposal
+from app.schemas.ingestion import (
+    ApplyIngestionResult,
+    AssetEnrichmentResult,
+    CareerExtractionProposal,
+)
 from app.services.ai import get_career_extractor
 from app.services.audit import record_audit
 
@@ -61,6 +68,19 @@ def create_ingestion(
         ) from exc
     session.add(run)
     session.flush()
+    settings = get_settings()
+    session.add(
+        AiOperation(
+            operation="extract_career_source",
+            entity_type="ingestion_run",
+            entity_id=str(run.id),
+            provider=extractor.name,
+            model=settings.gemini_model if extractor.name == "gemini" else "",
+            status="completed",
+            input_characters=len(text),
+            output_characters=len(run.proposal_json),
+        )
+    )
     record_audit(
         session,
         entity_type="ingestion_run",
@@ -70,6 +90,127 @@ def create_ingestion(
         details={"source_type": source_type, "provider": extractor.name},
     )
     return run
+
+
+def reprocess_ingestion(session: Session, run: IngestionRun) -> IngestionRun:
+    if run.status == "applied":
+        raise HTTPException(status_code=409, detail="Applied ingestions cannot be reprocessed")
+    policy = AiHandlingPolicy(run.ai_handling_policy)
+    if run.document_id:
+        document = session.get(Document, run.document_id)
+        if document is None:
+            raise HTTPException(status_code=404, detail="Source document is missing")
+        text = document.extracted_text
+    elif run.source_url:
+        _, text = fetch_public_page(run.source_url)
+    else:
+        raise HTTPException(status_code=422, detail="Ingestion has no reusable source")
+    extractor = get_career_extractor(policy)
+    proposal = extractor.extract(text, run.source_label)
+    run.provider = extractor.name
+    run.proposal_json = proposal.model_dump_json()
+    run.status = "ready_for_review"
+    run.error_message = ""
+    session.add(run)
+    settings = get_settings()
+    session.add(
+        AiOperation(
+            operation="reprocess_career_source",
+            entity_type="ingestion_run",
+            entity_id=str(run.id),
+            provider=extractor.name,
+            model=settings.gemini_model if extractor.name == "gemini" else "",
+            status="completed",
+            input_characters=len(text),
+            output_characters=len(run.proposal_json),
+        )
+    )
+    record_audit(
+        session,
+        entity_type="ingestion_run",
+        entity_id=run.id,
+        action="reprocessed",
+        source=Provenance.AI.value if extractor.name == "gemini" else Provenance.RULE.value,
+    )
+    return run
+
+
+def save_proposal(session: Session, run: IngestionRun, proposal: CareerExtractionProposal) -> None:
+    if run.status == "applied":
+        raise HTTPException(status_code=409, detail="Applied ingestions cannot be edited")
+    run.proposal_json = proposal.model_dump_json()
+    session.add(run)
+    record_audit(
+        session,
+        entity_type="ingestion_run",
+        entity_id=run.id,
+        action="corrected",
+        source=Provenance.USER.value,
+    )
+
+
+def enrich_asset(session: Session, asset: CareerAsset) -> AssetEnrichmentResult:
+    extractor = get_career_extractor(AiHandlingPolicy.AI_ALLOWED)
+    source = "\n".join([asset.title, asset.description, asset.impact_summary, asset.role])
+    result = extractor.enrich(source)
+    existing_tags = json.loads(asset.tags_json)
+    tags_added = [tag for tag in result.tags if tag not in existing_tags]
+    asset.tags_json = json.dumps([*existing_tags, *tags_added])
+    asset.updated_at = datetime.now(UTC)
+    session.add(asset)
+    existing_themes = {item.name.casefold(): item for item in session.exec(select(Theme)).all()}
+    linked_ids = {
+        link.theme_id
+        for link in session.exec(
+            select(AssetThemeLink).where(AssetThemeLink.asset_id == asset.id)
+        ).all()
+    }
+    themes_added: list[str] = []
+    for name in result.themes:
+        clean = name.strip()[:100]
+        if not clean:
+            continue
+        theme = existing_themes.get(clean.casefold())
+        if theme is None:
+            theme = Theme(name=clean, provenance=Provenance.AI.value)
+            session.add(theme)
+            session.flush()
+            existing_themes[clean.casefold()] = theme
+        if theme.id not in linked_ids:
+            session.add(
+                AssetThemeLink(asset_id=asset.id, theme_id=theme.id, provenance=Provenance.AI.value)
+            )
+            linked_ids.add(theme.id)
+            themes_added.append(theme.name)
+    settings = get_settings()
+    session.add(
+        AiOperation(
+            operation="enrich_asset",
+            entity_type="career_asset",
+            entity_id=str(asset.id),
+            provider=extractor.name,
+            model=settings.gemini_model if extractor.name == "gemini" else "",
+            status="completed",
+            input_characters=len(source),
+            output_characters=len(result.model_dump_json()),
+        )
+    )
+    record_audit(
+        session,
+        entity_type="career_asset",
+        entity_id=asset.id,
+        action="ai_enriched",
+        source=Provenance.AI.value if extractor.name == "gemini" else Provenance.RULE.value,
+        details={"tags_added": tags_added, "themes_added": themes_added},
+    )
+    return AssetEnrichmentResult(
+        asset_id=asset.id,
+        provider=extractor.name,
+        tags_added=tags_added,
+        themes_added=themes_added,
+        summary=result.summary,
+        association_suggestions=result.association_suggestions,
+    )
 
 
 def fetch_public_page(url: str) -> tuple[str, str]:

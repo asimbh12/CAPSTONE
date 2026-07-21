@@ -3,6 +3,7 @@ import ArchiveOutlined from '@mui/icons-material/ArchiveOutlined'
 import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined'
 import EditOutlined from '@mui/icons-material/EditOutlined'
 import SearchOutlined from '@mui/icons-material/SearchOutlined'
+import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import {
   Alert,
   Box,
@@ -159,8 +160,9 @@ function AssetDetailDialog({ asset, onClose, onEdit, onChanged }: DetailDialogPr
   const [policy, setPolicy] = useState<'local_only' | 'ai_allowed' | 'redacted'>('local_only')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [enrichment, setEnrichment] = useState<string | null>(null)
 
-  useEffect(() => { setTitle(''); setDescription(''); setSourceUrl(''); setFile(null); setConfirmed(false); setError(null) }, [asset?.id])
+  useEffect(() => { setTitle(''); setDescription(''); setSourceUrl(''); setFile(null); setConfirmed(false); setError(null); setEnrichment(null) }, [asset?.id])
   if (!asset) return null
   const currentAsset = asset
 
@@ -193,6 +195,16 @@ function AssetDetailDialog({ asset, onClose, onEdit, onChanged }: DetailDialogPr
     finally { setBusy(false) }
   }
 
+  async function enrich() {
+    setBusy(true); setError(null)
+    try {
+      const result = await careerApi.enrichAsset(currentAsset.id)
+      setEnrichment(`${result.provider} added ${result.tags_added.length} tags and ${result.themes_added.length} themes. ${result.summary}`)
+      onChanged(await careerApi.getAsset(currentAsset.id))
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to enrich asset') }
+    finally { setBusy(false) }
+  }
+
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>
@@ -202,6 +214,7 @@ function AssetDetailDialog({ asset, onClose, onEdit, onChanged }: DetailDialogPr
       </DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {enrichment && <Alert severity="success" sx={{ mb: 2 }}>{enrichment}</Alert>}
         <Typography color="text.secondary">{asset.description || 'No description yet.'}</Typography>
         {asset.impact_summary && <><Typography fontWeight={800} mt={3}>Impact</Typography><Typography>{asset.impact_summary}</Typography></>}
         <Stack direction="row" flexWrap="wrap" gap={1} mt={2}>{asset.themes.map((theme) => <Chip key={theme.id} label={theme.name} />)}{asset.tags.map((tag) => <Chip key={tag} label={tag} variant="outlined" />)}</Stack>
@@ -223,7 +236,7 @@ function AssetDetailDialog({ asset, onClose, onEdit, onChanged }: DetailDialogPr
           </Grid>
         </Box>
       </DialogContent>
-      <DialogActions><Button color="warning" startIcon={<ArchiveOutlined />} onClick={() => void archive()} disabled={busy}>Archive</Button><Button startIcon={<EditOutlined />} onClick={onEdit}>Edit</Button><Button onClick={onClose}>Close</Button></DialogActions>
+      <DialogActions><Button startIcon={<AutoAwesomeOutlined />} onClick={() => void enrich()} disabled={busy}>AI enrich</Button><Button color="warning" startIcon={<ArchiveOutlined />} onClick={() => void archive()} disabled={busy}>Archive</Button><Button startIcon={<EditOutlined />} onClick={onEdit}>Edit</Button><Button onClick={onClose}>Close</Button></DialogActions>
     </Dialog>
   )
 }

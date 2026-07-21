@@ -10,6 +10,12 @@
    asset** for anything that should not be imported.
 6. Apply the proposal, then verify **Profile & goals**, **Career assets**, and **Timeline**.
 
+The workspace shows the active provider and model, retains recent analyses, and supports saving
+manual corrections, reprocessing an eligible source, and suppressing an unwanted proposal.
+Open a career asset and choose **AI enrich** to merge derived tags and themes without modifying
+the user-authored title, description, dates, role, or impact statement. Provider operations record
+status and character counts for troubleshooting without logging source bodies or API keys.
+
 Existing user-authored profile values are never overwritten. Duplicate asset titles are skipped.
 Original uploaded documents remain under the local `data/originals` directory and SQLite stores
 their metadata. LinkedIn should be supplied as a downloaded profile PDF or data export because

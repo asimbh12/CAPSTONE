@@ -16,6 +16,8 @@ Stage 4 begins with document-led onboarding. Use **Import career** to upload a P
 or TXT CV, or analyse an accessible public professional page. CAPSTONE creates an editable
 proposal before filling blank profile fields and creating evidence-backed career assets.
 JSON remains available for technical portability but is not required for onboarding.
+The enrichment workspace also provides provider visibility, ingestion history, correction,
+reprocessing and suppression controls, plus additive AI-managed asset tags and themes.
 
 ## Run locally
 

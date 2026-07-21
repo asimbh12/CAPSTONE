@@ -4,11 +4,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlmodel import Session, col, select
 
+from app.core.config import get_settings
 from app.db.session import get_session
-from app.models.career import AiHandlingPolicy, IngestionRun
+from app.models.career import AiHandlingPolicy, AiOperation, CareerAsset, IngestionRun
 from app.schemas.ingestion import (
+    AiOperationRead,
+    AiProviderStatus,
     ApplyIngestionRequest,
     ApplyIngestionResult,
+    AssetEnrichmentResult,
+    CareerExtractionProposal,
     IngestionRead,
     UrlIngestionRequest,
 )
@@ -16,12 +21,39 @@ from app.services.documents import store_document
 from app.services.ingestion import (
     apply_ingestion,
     create_ingestion,
+    enrich_asset,
     fetch_public_page,
     ingestion_read,
+    reprocess_ingestion,
+    save_proposal,
 )
 
 router = APIRouter()
 SessionDependency = Annotated[Session, Depends(get_session)]
+
+
+@router.get("/provider-status", response_model=AiProviderStatus)
+def provider_status() -> AiProviderStatus:
+    settings = get_settings()
+    gemini_ready = bool(settings.gemini_api_key)
+    active = (
+        "gemini" if settings.ai_provider.lower() == "gemini" and gemini_ready else "deterministic"
+    )
+    return AiProviderStatus(
+        configured_provider=settings.ai_provider,
+        active_provider=active,
+        model=settings.gemini_model if active == "gemini" else "",
+        gemini_key_configured=gemini_ready,
+    )
+
+
+@router.get("/operations", response_model=list[AiOperationRead])
+def list_operations(session: SessionDependency) -> list[AiOperation]:
+    return list(
+        session.exec(
+            select(AiOperation).order_by(col(AiOperation.created_at).desc()).limit(100)
+        ).all()
+    )
 
 
 @router.get("", response_model=list[IngestionRead])
@@ -84,5 +116,53 @@ def apply_run(
     if run is None:
         raise HTTPException(status_code=404, detail="Ingestion proposal not found")
     result = apply_ingestion(session, run, payload.proposal)
+    session.commit()
+    return result
+
+
+@router.put("/{run_id}/proposal", response_model=IngestionRead)
+def correct_proposal(
+    run_id: UUID, payload: CareerExtractionProposal, session: SessionDependency
+) -> dict[str, object]:
+    run = session.get(IngestionRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Ingestion proposal not found")
+    save_proposal(session, run, payload)
+    session.commit()
+    session.refresh(run)
+    return ingestion_read(run)
+
+
+@router.post("/{run_id}/reprocess", response_model=IngestionRead)
+def reprocess_run(run_id: UUID, session: SessionDependency) -> dict[str, object]:
+    run = session.get(IngestionRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Ingestion proposal not found")
+    reprocess_ingestion(session, run)
+    session.commit()
+    session.refresh(run)
+    return ingestion_read(run)
+
+
+@router.post("/{run_id}/suppress", response_model=IngestionRead)
+def suppress_run(run_id: UUID, session: SessionDependency) -> dict[str, object]:
+    run = session.get(IngestionRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Ingestion proposal not found")
+    if run.status == "applied":
+        raise HTTPException(status_code=409, detail="Applied ingestions cannot be suppressed")
+    run.status = "suppressed"
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    return ingestion_read(run)
+
+
+@router.post("/assets/{asset_id}/enrich", response_model=AssetEnrichmentResult)
+def enrich_career_asset(asset_id: UUID, session: SessionDependency) -> AssetEnrichmentResult:
+    asset = session.get(CareerAsset, asset_id)
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Career asset not found")
+    result = enrich_asset(session, asset)
     session.commit()
     return result

@@ -200,3 +200,19 @@ class IngestionRun(SQLModel, table=True):
     error_message: str = Field(default="", sa_column=Column(Text, nullable=False))
     created_at: datetime = Field(default_factory=utc_now, index=True)
     applied_at: datetime | None = None
+
+
+class AiOperation(SQLModel, table=True):
+    __tablename__ = "ai_operations"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    operation: str = Field(max_length=80, index=True)
+    entity_type: str = Field(max_length=80, index=True)
+    entity_id: str = Field(max_length=100, index=True)
+    provider: str = Field(max_length=50)
+    model: str = Field(default="", max_length=100)
+    status: str = Field(max_length=30, index=True)
+    input_characters: int = 0
+    output_characters: int = 0
+    error_message: str = Field(default="", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
