@@ -5,6 +5,7 @@ import { AppLayout, type PageKey } from './components/AppLayout'
 import { AssetsPage } from './pages/AssetsPage'
 import { DataPage } from './pages/DataPage'
 import { OverviewPage } from './pages/OverviewPage'
+import { OnboardingPage } from './pages/OnboardingPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { TimelinePage } from './pages/TimelinePage'
 
@@ -12,6 +13,7 @@ export function App() {
   const [page, setPage] = useState<PageKey>('overview')
   const content = {
     overview: <OverviewPage />,
+    onboarding: <OnboardingPage />,
     assets: <AssetsPage />,
     timeline: <TimelinePage />,
     profile: <ProfilePage />,

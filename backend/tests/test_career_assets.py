@@ -95,4 +95,3 @@ def test_document_upload_requires_public_information_confirmation(client: TestCl
     )
 
     assert response.status_code == 422
-

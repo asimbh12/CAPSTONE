@@ -51,18 +51,19 @@ def build_export(session: Session) -> dict[str, Any]:
     return cast(
         dict[str, Any],
         jsonable_encoder(
-        {
-            "schema_version": SCHEMA_VERSION,
-            "exported_at": datetime.now(UTC),
-            "profile": profile,
-            "themes": themes,
-            "goals": goals,
-            "organisations": organisations,
-            "people": people,
-            "assets": [build_asset_read(session, asset) for asset in assets],
-            "documents": documents,
-            "evidence": evidence,
-        }),
+            {
+                "schema_version": SCHEMA_VERSION,
+                "exported_at": datetime.now(UTC),
+                "profile": profile,
+                "themes": themes,
+                "goals": goals,
+                "organisations": organisations,
+                "people": people,
+                "assets": [build_asset_read(session, asset) for asset in assets],
+                "documents": documents,
+                "evidence": evidence,
+            }
+        ),
     )
 
 

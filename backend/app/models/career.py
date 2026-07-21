@@ -183,3 +183,20 @@ class AuditEvent(SQLModel, table=True):
     source: str = Field(default=Provenance.USER.value, max_length=20)
     details_json: str = Field(default="{}", sa_column=Column(Text, nullable=False))
     occurred_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class IngestionRun(SQLModel, table=True):
+    __tablename__ = "ingestion_runs"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    source_type: str = Field(max_length=30, index=True)
+    source_label: str = Field(max_length=500)
+    source_url: str = Field(default="", max_length=1_000)
+    document_id: UUID | None = Field(default=None, foreign_key="documents.id")
+    ai_handling_policy: str = Field(default=AiHandlingPolicy.LOCAL_ONLY.value, max_length=20)
+    provider: str = Field(default="deterministic", max_length=50)
+    status: str = Field(default="ready_for_review", max_length=30, index=True)
+    proposal_json: str = Field(default="{}", sa_column=Column(Text, nullable=False))
+    error_message: str = Field(default="", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    applied_at: datetime | None = None

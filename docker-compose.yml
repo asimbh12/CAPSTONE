@@ -9,6 +9,9 @@ services:
       CAPSTONE_DATABASE_URL: sqlite:////data/capstone.db
       CAPSTONE_DATA_ROOT: /data
       CAPSTONE_CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      CAPSTONE_AI_PROVIDER: ${CAPSTONE_AI_PROVIDER:-deterministic}
+      CAPSTONE_GEMINI_API_KEY: ${CAPSTONE_GEMINI_API_KEY:-}
+      CAPSTONE_GEMINI_MODEL: ${CAPSTONE_GEMINI_MODEL:-gemini-2.5-flash-lite}
     volumes:
       - ./data:/data
     ports:
@@ -38,4 +41,3 @@ services:
       retries: 5
       start_period: 5s
     restart: unless-stopped
-

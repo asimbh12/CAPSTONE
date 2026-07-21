@@ -131,3 +131,47 @@ export interface BackupRecord {
   download_url: string
 }
 
+export interface ProposedAsset {
+  title: string
+  description: string
+  category: string
+  role: string
+  organisation: string
+  start_date: string | null
+  end_date: string | null
+  impact_summary: string
+  tags: string[]
+  themes: string[]
+  include: boolean
+}
+
+export interface IngestionProposal {
+  profile: Pick<ProfileInput, 'name' | 'current_title' | 'current_organisation' | 'career_narrative'>
+  assets: ProposedAsset[]
+  themes: string[]
+  warnings: string[]
+}
+
+export interface IngestionRun {
+  id: string
+  source_type: string
+  source_label: string
+  source_url: string
+  document_id: string | null
+  ai_handling_policy: DocumentRecord['ai_handling_policy']
+  provider: string
+  status: string
+  proposal: IngestionProposal
+  error_message: string
+  created_at: string
+  applied_at: string | null
+}
+
+export interface ApplyIngestionResult {
+  profile_created: boolean
+  profile_fields_filled: string[]
+  assets_created: number
+  assets_skipped: number
+  organisations_created: number
+  themes_created: number
+}

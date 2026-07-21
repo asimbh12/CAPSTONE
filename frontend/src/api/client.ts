@@ -6,6 +6,9 @@ import type {
   Evidence,
   Goal,
   ImportReport,
+  IngestionProposal,
+  IngestionRun,
+  ApplyIngestionResult,
   Organisation,
   Profile,
   ProfileInput,
@@ -79,7 +82,17 @@ export const careerApi = {
       body: JSON.stringify({ confirmed_public_information: true, mode, payload }),
     }),
   createBackup: () => request<BackupRecord>('/data/backups', { method: 'POST' }),
+  ingestDocument: (formData: FormData) =>
+    request<IngestionRun>('/ingestions/documents', { method: 'POST', body: formData }),
+  ingestUrl: (url: string, aiHandlingPolicy: DocumentRecord['ai_handling_policy']) =>
+    request<IngestionRun>('/ingestions/urls', {
+      method: 'POST',
+      body: JSON.stringify({ url, ai_handling_policy: aiHandlingPolicy, confirmed_public_information: true }),
+    }),
+  applyIngestion: (id: string, proposal: IngestionProposal) =>
+    request<ApplyIngestionResult>(`/ingestions/${id}/apply`, {
+      method: 'POST', body: JSON.stringify({ proposal }),
+    }),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`
-

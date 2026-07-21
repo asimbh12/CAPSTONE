@@ -31,6 +31,9 @@ Exit condition: the owner approves the Stage 1 baseline and unresolved questions
 
 ## Stage 4 — AI enrichment
 
+- Document-led onboarding from CVs and career materials, with public-profile URL ingestion.
+- Reviewable extraction proposals that populate blank profile fields, assets, organisations,
+  evidence, themes, and the timeline after user confirmation.
 - Provider-neutral contracts and Gemini adapter.
 - Document-level AI policy enforcement.
 - Structured tagging, theme extraction, association suggestions, and automatic enrichment.
@@ -66,4 +69,3 @@ Exit condition: the owner approves the Stage 1 baseline and unresolved questions
 ## Deferred roadmap
 
 After MVP validation: broader document templates, fellowships, awards, grants, CRM, thought leadership, discovery/monitoring, honours, analytics expansion, PostgreSQL, authentication, multi-user workspaces, cloud deployment, encryption and production monitoring.
-

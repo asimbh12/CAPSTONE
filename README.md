@@ -12,6 +12,11 @@ Stage 3 provides the first complete career-intelligence workflow: profile, goals
 career assets, evidence and local documents, search/filtering, timeline generation, versioned
 JSON import/export, audit events, and coordinated local backups.
 
+Stage 4 begins with document-led onboarding. Use **Import career** to upload a PDF, DOCX,
+or TXT CV, or analyse an accessible public professional page. CAPSTONE creates an editable
+proposal before filling blank profile fields and creating evidence-backed career assets.
+JSON remains available for technical portability but is not required for onboarding.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -25,6 +30,8 @@ Then open <http://127.0.0.1:5173>. See the
 
 See the [Stage 3 testing guide](docs/development/stage-3-testing.md) for the interactive
 career-asset and data-safety workflow.
+See the [Stage 4 onboarding guide](docs/development/stage-4-onboarding.md) for CV and public-link
+ingestion.
 
 ## Documentation
 

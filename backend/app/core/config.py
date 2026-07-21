@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "sqlite:///./data/capstone.db"
     data_root: Path = Path("./data")
+    ai_provider: str = "deterministic"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash-lite"
     cors_origins: Annotated[list[str], NoDecode] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

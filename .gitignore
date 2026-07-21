@@ -12,6 +12,7 @@ data/backups/*
 *.db
 *.sqlite
 *.sqlite3
+seed_profile.json
 
 # Python
 __pycache__/
