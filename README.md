@@ -34,6 +34,9 @@ career assets and evidence to weighted target criteria, and producing versioned 
 assessments. Gemini can suggest trajectories from the user's existing public profile and
 career assets; suggestions remain drafts until the user explicitly adopts them.
 
+Stage 6.5 consolidates the interface with responsive workspace navigation, clearer page and
+control hierarchy, and progressive disclosure for dense import and target-readiness details.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -53,6 +56,8 @@ See the [Stage 5 testing guide](docs/development/stage-5-opportunities.md) for o
 tracking and prioritisation.
 See the [Stage 6 testing guide](docs/development/stage-6-targets-readiness.md) for target
 definition, evidence mapping, AI suggestions, and readiness assessments.
+See the [Stage 6.5 interface guide](docs/development/stage-6-5-interface-consolidation.md) for
+the responsive navigation and usability verification checklist.
 
 ## Documentation
 

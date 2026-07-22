@@ -67,6 +67,15 @@ mappings, versioned deterministic readiness and confidence snapshots, strengths,
 recommended actions, audit events, and Gemini trajectory suggestions that remain unadopted until
 the user explicitly reviews and saves them.
 
+## Stage 6.5 — Interface consolidation
+
+- Responsive workspace navigation for desktop and mobile.
+- Consistent page hierarchy, spacing, controls, and status presentation.
+- Progressive disclosure for dense target-readiness and import workflows.
+
+Stage 6.5 delivered as a focused usability baseline before job-application development, without
+changing domain behaviour or stored data.
+
 ## Stage 7 — Job applications
 
 - Position-description upload and pasted-text ingestion.

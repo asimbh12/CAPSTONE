@@ -1,11 +1,12 @@
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import LinkOutlined from '@mui/icons-material/LinkOutlined'
 import UploadFileOutlined from '@mui/icons-material/UploadFileOutlined'
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined'
 import SaveOutlined from '@mui/icons-material/SaveOutlined'
 import {
-  Alert, Box, Button, Card, CardContent, Checkbox, FormControlLabel, Grid, MenuItem,
-  Stack, TextField, Typography,
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, CardContent,
+  Checkbox, FormControlLabel, Grid, MenuItem, Stack, TextField, Typography,
 } from '@mui/material'
 import { useEffect, useState } from 'react'
 
@@ -91,8 +92,13 @@ export function OnboardingPage() {
     <PageHeader eyebrow="DOCUMENT-LED ONBOARDING" title="Build from your career materials" description="Upload a CV or add a public professional page. CAPSTONE extracts a reviewable profile and career timeline proposal before anything is applied." />
     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
     {provider && <Alert severity={provider.active_provider === 'gemini' ? 'success' : 'warning'} sx={{ mb: 2 }}>Active analysis provider: <strong>{provider.active_provider}</strong>{provider.model ? ` · ${provider.model}` : ''}. Choosing “AI allowed” grants permission; it does not override this active provider.</Alert>}
-    <Alert severity="info" sx={{ mb: 3 }}>JSON is not required. PDF, DOCX and TXT are supported. CAPSTONE follows relevant sections and pagination within the same public profile. Google Scholar is analysed in 100-result pages; Deakin Experts includes profile, outputs, grants, professional activities, teaching and supervision. For LinkedIn, upload your profile PDF or data export rather than relying on automated scraping.</Alert>
-    <Card sx={{ mb: 3 }}><CardContent><Grid container spacing={2} alignItems="center">
+    <Accordion sx={{ mb: 3 }}>
+      <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
+        <Box><Typography fontWeight={800}>How source analysis works</Typography><Typography variant="body2" color="text.secondary">Supported files, profile pagination and source-specific guidance</Typography></Box>
+      </AccordionSummary>
+      <AccordionDetails><Alert severity="info">JSON is not required. PDF, DOCX and TXT are supported. CAPSTONE follows relevant sections and pagination within the same public profile. Google Scholar is analysed in 100-result pages; Deakin Experts includes profile, outputs, grants, professional activities, teaching and supervision. For LinkedIn, upload your profile PDF or data export rather than relying on automated scraping.</Alert></AccordionDetails>
+    </Accordion>
+    <Card sx={{ mb: 3 }}><CardContent><Typography variant="h5" mb={2}>Add career sources</Typography><Grid container spacing={2} alignItems="center">
       <Grid size={{ xs: 12, md: 5 }}><Button component="label" fullWidth variant="outlined" startIcon={<UploadFileOutlined />}>{file?.name || 'Choose CV or career document'}<input hidden type="file" accept=".pdf,.docx,.txt" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></Button></Grid>
       <Grid size={{ xs: 12, md: 5 }}><Stack gap={1.5}>{sources.map((source, index) => <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} key={index}><TextField select label="Source type" value={source.source_type} onChange={(event) => updateSource(index, { source_type: event.target.value })} sx={{ minWidth: 190 }}><MenuItem value="institutional_profile">Institutional profile</MenuItem><MenuItem value="orcid">ORCID</MenuItem><MenuItem value="google_scholar">Google Scholar</MenuItem><MenuItem value="personal_website">Personal website</MenuItem><MenuItem value="media">Media/public link</MenuItem><MenuItem value="other">Other</MenuItem></TextField><TextField fullWidth label={`Public URL ${index + 1}`} value={source.url} onChange={(event) => updateSource(index, { url: event.target.value })} slotProps={{ input: { startAdornment: <LinkOutlined sx={{ mr: 1 }} /> } }} />{sources.length > 2 && <Button color="warning" onClick={() => setSources((items) => items.filter((_, itemIndex) => itemIndex !== index))}>Remove</Button>}</Stack>)}<Button onClick={() => setSources((items) => [...items, { url: '', source_type: 'other' }])}>Add another URL</Button></Stack></Grid>
       <Grid size={{ xs: 12, md: 2 }}><TextField select fullWidth label="Processing" value={policy} onChange={(event) => setPolicy(event.target.value as Policy)}><MenuItem value="local_only">Local only</MenuItem><MenuItem value="ai_allowed">AI allowed</MenuItem><MenuItem value="redacted">Redacted</MenuItem></TextField></Grid>
