@@ -97,23 +97,31 @@ def auto_assess_goal(goal_id: UUID, session: SessionDependency) -> GoalReadiness
     ]
     from google import genai
 
-    response = genai.Client(api_key=settings.gemini_api_key).models.generate_content(
-        model=settings.gemini_model,
-        contents=(
-            "Assess current readiness for the supplied strategic career goal using only the "
-            "supplied public career achievements and evidence. Map every genuinely relevant "
-            "achievement by its supplied ID. Readiness is demonstrated progress toward the goal "
-            "from 0-100, not the probability of future success. Do not claim the goal itself is "
-            "achieved unless evidence explicitly proves it. Identify established strengths, "
-            "genuine gaps, and specific next actions. Confidence reflects evidence quality.\n\n"
-            f"GOAL: {goal.model_dump(mode='json')}\nACHIEVEMENTS: {asset_context}"
-        ),
-        config={
-            "response_mime_type": "application/json",
-            "response_schema": ProviderGoalAssessment,
-            "temperature": 0.1,
-        },
-    )
+    client = genai.Client(api_key=settings.gemini_api_key)
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=(
+                "Assess current readiness for the supplied strategic career goal using only the "
+                "supplied public career achievements and evidence. Map every genuinely relevant "
+                "achievement by its supplied ID. Readiness is demonstrated progress toward the "
+                "goal from 0-100, not the probability of future success. Do not claim the goal "
+                "itself is achieved unless evidence explicitly proves it. Identify established "
+                "strengths, genuine gaps, and specific next actions. Confidence reflects evidence "
+                "quality.\n\n"
+                f"GOAL: {goal.model_dump(mode='json')}\nACHIEVEMENTS: {asset_context}"
+            ),
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": ProviderGoalAssessment,
+                "temperature": 0.1,
+            },
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Gemini could not complete the goal assessment: {exc}",
+        ) from exc
     provider_result = ProviderGoalAssessment.model_validate_json(response.text or "{}")
     assets_by_id = {str(asset.id): asset for asset in assets}
     mapped_assets = list(

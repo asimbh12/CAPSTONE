@@ -208,6 +208,40 @@ def test_ai_goal_assessment_maps_existing_achievements(
     assert result["trajectory"][0]["readiness_score"] == 72
 
 
+def test_ai_goal_assessment_returns_cors_enabled_provider_error(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    goal = client.post(
+        "/api/goals", json={"title": "Sector fellowship", "horizon": "medium_term"}
+    ).json()
+    client.post(
+        "/api/assets",
+        json={"title": "Sector contribution", "description": "Public work", "category": "Service"},
+    )
+
+    class FailingModels:
+        @staticmethod
+        def generate_content(**kwargs: object) -> object:
+            raise RuntimeError("provider unavailable")
+
+    class FailingClient:
+        def __init__(self, **kwargs: object) -> None:
+            self.models = FailingModels()
+
+    monkeypatch.setenv("CAPSTONE_AI_PROVIDER", "gemini")
+    monkeypatch.setenv("CAPSTONE_GEMINI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("google.genai.Client", FailingClient)
+
+    response = client.post(
+        f"/api/targets/goals/{goal['id']}/auto-assess",
+        headers={"Origin": "http://127.0.0.1:5173"},
+    )
+    assert response.status_code == 502
+    assert "provider unavailable" in response.json()["detail"]
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
+
+
 def test_ai_mapping_links_existing_assets_and_creates_assessment(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
