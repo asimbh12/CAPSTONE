@@ -164,6 +164,36 @@ class TimelineItem(ApiModel):
     organisation: str | None
 
 
+class TimelineDuplicateCandidate(TimelineItem):
+    description: str
+    source_kind: str
+    evidence_count: int
+
+
+class TimelineDuplicateGroup(ApiModel):
+    confidence: int = Field(ge=0, le=100)
+    reasons: list[str]
+    items: list[TimelineDuplicateCandidate]
+
+
+class TimelineDuplicateResolution(ApiModel):
+    keep_id: UUID
+    archive_ids: list[UUID] = Field(min_length=1, max_length=20)
+
+    @model_validator(mode="after")
+    def keep_record_must_be_distinct(self) -> "TimelineDuplicateResolution":
+        if self.keep_id in self.archive_ids:
+            raise ValueError("The retained record cannot also be archived")
+        if len(set(self.archive_ids)) != len(self.archive_ids):
+            raise ValueError("Duplicate archive IDs are not allowed")
+        return self
+
+
+class TimelineDuplicateResolutionResult(ApiModel):
+    kept_id: UUID
+    archived_ids: list[UUID]
+
+
 class PublicInformationConfirmation(ApiModel):
     confirmed_public_information: bool
 

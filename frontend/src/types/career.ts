@@ -113,6 +113,23 @@ export interface TimelineItem {
   organisation: string | null
 }
 
+export interface TimelineDuplicateCandidate extends TimelineItem {
+  description: string
+  source_kind: string
+  evidence_count: number
+}
+
+export interface TimelineDuplicateGroup {
+  confidence: number
+  reasons: string[]
+  items: TimelineDuplicateCandidate[]
+}
+
+export interface TimelineDuplicateResolutionResult {
+  kept_id: string
+  archived_ids: string[]
+}
+
 export interface ImportReport {
   mode: string
   schema_version: string

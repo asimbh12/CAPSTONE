@@ -38,12 +38,16 @@ from app.schemas.career import (
     ProfileRead,
     ThemeCreate,
     ThemeRead,
+    TimelineDuplicateGroup,
+    TimelineDuplicateResolution,
+    TimelineDuplicateResolutionResult,
     TimelineItem,
 )
 from app.services.audit import record_audit
 from app.services.career import (
     build_asset_read,
     create_asset,
+    find_timeline_duplicate_groups,
     get_asset_or_404,
     query_assets,
     update_asset,
@@ -286,3 +290,63 @@ def get_timeline(session: SessionDependency) -> list[TimelineItem]:
             )
         )
     return items
+
+
+@router.get("/timeline/duplicates", response_model=list[TimelineDuplicateGroup])
+def get_timeline_duplicates(session: SessionDependency) -> list[TimelineDuplicateGroup]:
+    return find_timeline_duplicate_groups(session)
+
+
+@router.post("/timeline/duplicates/resolve", response_model=TimelineDuplicateResolutionResult)
+def resolve_timeline_duplicates(
+    payload: TimelineDuplicateResolution, session: SessionDependency
+) -> TimelineDuplicateResolutionResult:
+    keep = get_asset_or_404(session, payload.keep_id)
+    if keep.status == AssetStatus.ARCHIVED.value:
+        raise HTTPException(status_code=422, detail="The retained career asset is archived")
+    duplicate_groups = find_timeline_duplicate_groups(session)
+    candidates = {
+        item.id: item
+        for group in duplicate_groups
+        for item in group.items
+    }
+    allowed_group = next(
+        (
+            {item.id for item in group.items}
+            for group in duplicate_groups
+            if payload.keep_id in {item.id for item in group.items}
+        ),
+        set(),
+    )
+    if not set(payload.archive_ids).issubset(allowed_group) or any(
+        asset_id not in candidates for asset_id in payload.archive_ids
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Records can only be archived from the same detected duplicate group",
+        )
+    now = datetime.now(UTC)
+    for asset_id in payload.archive_ids:
+        asset = get_asset_or_404(session, asset_id)
+        asset.status = AssetStatus.ARCHIVED.value
+        asset.archived_at = now
+        asset.updated_at = now
+        session.add(asset)
+        record_audit(
+            session,
+            entity_type="career_asset",
+            entity_id=asset.id,
+            action="duplicate_archived",
+            details={"retained_asset_id": keep.id},
+        )
+    record_audit(
+        session,
+        entity_type="career_asset",
+        entity_id=keep.id,
+        action="duplicate_retained",
+        details={"archived_asset_ids": payload.archive_ids},
+    )
+    session.commit()
+    return TimelineDuplicateResolutionResult(
+        kept_id=keep.id, archived_ids=payload.archive_ids
+    )

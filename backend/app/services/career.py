@@ -1,6 +1,8 @@
 import json
+import re
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from difflib import SequenceMatcher
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -22,6 +24,8 @@ from app.schemas.career import (
     EvidenceRead,
     OrganisationRead,
     ThemeRead,
+    TimelineDuplicateCandidate,
+    TimelineDuplicateGroup,
 )
 from app.services.audit import record_audit
 
@@ -166,3 +170,160 @@ def query_assets(
         col(CareerAsset.start_date).desc(), col(CareerAsset.created_at).desc()
     )
     return list(session.exec(statement).all()), int(session.exec(count_statement).one())
+
+
+_TITLE_FILLER_WORDS = {
+    "a", "an", "and", "at", "for", "in", "of", "on", "the", "to", "with",
+}
+
+
+def _normalise_comparison_text(value: str) -> str:
+    words = re.findall(r"[a-z0-9]+", value.casefold())
+    return " ".join(word for word in words if word not in _TITLE_FILLER_WORDS)
+
+
+def _title_similarity(left: str, right: str) -> float:
+    left_normalised = _normalise_comparison_text(left)
+    right_normalised = _normalise_comparison_text(right)
+    if not left_normalised or not right_normalised:
+        return 0
+    sequence_score = SequenceMatcher(None, left_normalised, right_normalised).ratio()
+    left_tokens = set(left_normalised.split())
+    right_tokens = set(right_normalised.split())
+    token_score = len(left_tokens & right_tokens) / len(left_tokens | right_tokens)
+    containment = len(left_tokens & right_tokens) / min(len(left_tokens), len(right_tokens))
+    return max(sequence_score, token_score, containment * 0.92)
+
+
+def find_timeline_duplicate_groups(session: Session) -> list[TimelineDuplicateGroup]:
+    assets = list(
+        session.exec(
+            select(CareerAsset)
+            .where(CareerAsset.status != "archived")
+            .order_by(col(CareerAsset.created_at))
+        ).all()
+    )
+    organisations = {
+        organisation.id: organisation.name
+        for organisation in session.exec(select(Organisation)).all()
+    }
+    evidence_counts = {
+        asset.id: int(
+            session.exec(
+                select(func.count())
+                .select_from(EvidenceItem)
+                .where(EvidenceItem.asset_id == asset.id)
+            ).one()
+        )
+        for asset in assets
+    }
+    links: list[tuple[int, int, int, list[str]]] = []
+    for left_index, left in enumerate(assets):
+        for right_index in range(left_index + 1, len(assets)):
+            right = assets[right_index]
+            title_score = _title_similarity(left.title, right.title)
+            same_date = bool(left.start_date and left.start_date == right.start_date)
+            same_year = bool(
+                left.start_date
+                and right.start_date
+                and left.start_date.year == right.start_date.year
+            )
+            left_organisation = (
+                organisations.get(left.organisation_id, "") if left.organisation_id else ""
+            )
+            right_organisation = (
+                organisations.get(right.organisation_id, "") if right.organisation_id else ""
+            )
+            same_organisation = bool(
+                left_organisation
+                and _normalise_comparison_text(left_organisation)
+                == _normalise_comparison_text(right_organisation)
+            )
+            same_category = bool(
+                left.category
+                and _normalise_comparison_text(left.category)
+                == _normalise_comparison_text(right.category)
+            )
+            same_role = bool(
+                left.role
+                and right.role
+                and _title_similarity(left.role, right.role) >= 0.85
+            )
+            contextual_matches = sum((same_date, same_organisation, same_category, same_role))
+            is_candidate = title_score >= 0.8 or (
+                title_score >= 0.68 and (same_date or (same_year and contextual_matches >= 1))
+            )
+            if not is_candidate:
+                continue
+            confidence = round(
+                min(
+                    99,
+                    title_score * 72
+                    + (12 if same_date else 5 if same_year else 0)
+                    + (6 if same_organisation else 0)
+                    + (5 if same_category else 0)
+                    + (5 if same_role else 0),
+                )
+            )
+            reasons = [f"Similar title wording ({round(title_score * 100)}%)"]
+            if same_date:
+                reasons.append("Same start date")
+            elif same_year:
+                reasons.append("Same start year")
+            if same_organisation:
+                reasons.append("Same organisation")
+            if same_category:
+                reasons.append("Same category")
+            if same_role:
+                reasons.append("Similar role")
+            links.append((left_index, right_index, confidence, reasons))
+
+    parent = list(range(len(assets)))
+
+    def root(index: int) -> int:
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    for left_index, right_index, _, _ in links:
+        left_root, right_root = root(left_index), root(right_index)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    grouped_indexes: dict[int, set[int]] = {}
+    for left_index, right_index, _, _ in links:
+        group = grouped_indexes.setdefault(root(left_index), set())
+        group.update((left_index, right_index))
+
+    groups: list[TimelineDuplicateGroup] = []
+    for indexes in grouped_indexes.values():
+        relevant_links = [link for link in links if link[0] in indexes and link[1] in indexes]
+        reasons = list(dict.fromkeys(reason for link in relevant_links for reason in link[3]))
+        candidates: list[TimelineDuplicateCandidate] = []
+        for index in sorted(indexes):
+            asset = assets[index]
+            candidates.append(
+                TimelineDuplicateCandidate(
+                    id=asset.id,
+                    title=asset.title,
+                    description=asset.description,
+                    category=asset.category,
+                    start_date=asset.start_date,
+                    end_date=asset.end_date,
+                    role=asset.role,
+                    organisation=(
+                        organisations.get(asset.organisation_id) if asset.organisation_id else None
+                    ),
+                    source_kind=asset.source_kind,
+                    evidence_count=evidence_counts[asset.id],
+                )
+            )
+        groups.append(
+            TimelineDuplicateGroup(
+                confidence=max(link[2] for link in relevant_links),
+                reasons=reasons,
+                items=candidates,
+            )
+        )
+    return sorted(groups, key=lambda group: group.confidence, reverse=True)

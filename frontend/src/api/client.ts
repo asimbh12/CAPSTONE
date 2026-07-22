@@ -21,6 +21,8 @@ import type {
   PublicProfileSource,
   Theme,
   TimelineItem,
+  TimelineDuplicateGroup,
+  TimelineDuplicateResolutionResult,
   Target,
   TargetCriterion,
   TargetInput,
@@ -90,6 +92,11 @@ export const careerApi = {
   uploadDocument: (formData: FormData) =>
     request<DocumentRecord>('/documents', { method: 'POST', body: formData }),
   timeline: () => request<TimelineItem[]>('/timeline'),
+  timelineDuplicates: () => request<TimelineDuplicateGroup[]>('/timeline/duplicates'),
+  resolveTimelineDuplicates: (keepId: string, archiveIds: string[]) =>
+    request<TimelineDuplicateResolutionResult>('/timeline/duplicates/resolve', {
+      method: 'POST', body: JSON.stringify({ keep_id: keepId, archive_ids: archiveIds }),
+    }),
   importData: (payload: object, mode: 'dry_run' | 'apply') =>
     request<ImportReport>('/data/import', {
       method: 'POST',

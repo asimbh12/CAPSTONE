@@ -115,14 +115,14 @@ def replace_mappings(
     for evidence_id in evidence_ids:
         if session.get(EvidenceItem, evidence_id) is None:
             raise HTTPException(status_code=422, detail=f"Evidence {evidence_id} does not exist")
-    for link in session.exec(
+    for asset_link in session.exec(
         select(CriterionAssetLink).where(CriterionAssetLink.criterion_id == criterion.id)
     ).all():
-        session.delete(link)
-    for link in session.exec(
+        session.delete(asset_link)
+    for evidence_link in session.exec(
         select(CriterionEvidenceLink).where(CriterionEvidenceLink.criterion_id == criterion.id)
     ).all():
-        session.delete(link)
+        session.delete(evidence_link)
     for asset_id in dict.fromkeys(asset_ids):
         session.add(CriterionAssetLink(criterion_id=criterion.id, asset_id=asset_id))
     for evidence_id in dict.fromkeys(evidence_ids):

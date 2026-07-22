@@ -95,3 +95,49 @@ def test_document_upload_requires_public_information_confirmation(client: TestCl
     )
 
     assert response.status_code == 422
+
+
+def test_timeline_duplicate_review_requires_confirmation_and_archives_rejected_record(
+    client: TestClient,
+) -> None:
+    base_asset = {
+        "description": "Led an international research conference.",
+        "category": "Leadership Asset",
+        "subcategory": "Conference leadership",
+        "start_date": "2025-12-01",
+        "end_date": None,
+        "date_precision": "day",
+        "status": "active",
+        "impact_summary": "",
+        "organisation_id": None,
+        "role": "General Chair",
+        "visibility": "public",
+        "tags": [],
+        "keywords": [],
+        "theme_ids": [],
+    }
+    first = client.post(
+        "/api/assets", json={**base_asset, "title": "International conference chair"}
+    ).json()
+    second = client.post(
+        "/api/assets", json={**base_asset, "title": "Chair, International Conference"}
+    ).json()
+
+    groups = client.get("/api/timeline/duplicates")
+    assert groups.status_code == 200
+    assert len(groups.json()) == 1
+    assert {item["id"] for item in groups.json()[0]["items"]} == {
+        first["id"], second["id"]
+    }
+    assert len(client.get("/api/timeline").json()) == 2
+
+    resolution = client.post(
+        "/api/timeline/duplicates/resolve",
+        json={"keep_id": first["id"], "archive_ids": [second["id"]]},
+    )
+    assert resolution.status_code == 200
+    assert resolution.json()["kept_id"] == first["id"]
+    assert resolution.json()["archived_ids"] == [second["id"]]
+    assert [item["id"] for item in client.get("/api/timeline").json()] == [first["id"]]
+    assert client.get(f"/api/assets/{second['id']}").json()["status"] == "archived"
+    assert client.get("/api/timeline/duplicates").json() == []

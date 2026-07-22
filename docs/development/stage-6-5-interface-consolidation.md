@@ -13,6 +13,9 @@ not change career data, scoring rules, ingestion behaviour, or AI authority.
   status, readiness score, progress, criteria, mappings, and assessment history grouped
   together.
 - Import guidance is collapsed by default so the source controls remain the primary action.
+- Timeline records are checked for possible near-duplicates using title, date, organisation,
+  category, and role context. The user compares source and evidence detail, chooses the record to
+  retain, and confirms before rejected records are archived; nothing is permanently deleted.
 - API and local-workspace status remain visible without competing with page content.
 
 ## Usability baseline
