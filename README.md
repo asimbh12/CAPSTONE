@@ -37,6 +37,11 @@ career assets; suggestions remain drafts until the user explicitly adopts them.
 Stage 6.5 consolidates the interface with responsive workspace navigation, clearer page and
 control hierarchy, and progressive disclosure for dense import and target-readiness details.
 
+Stage 7 adds a **Job applications** workspace. Paste or upload a public position description,
+review and confirm the extracted requirements, automatically map existing career assets, inspect
+the fit score and evidence gaps, then generate grounded cover-letter, selection-criteria,
+tailored-CV, and interview-note drafts. The application pack exports in both DOCX and PDF.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -58,6 +63,8 @@ See the [Stage 6 testing guide](docs/development/stage-6-targets-readiness.md) f
 definition, evidence mapping, AI suggestions, and readiness assessments.
 See the [Stage 6.5 interface guide](docs/development/stage-6-5-interface-consolidation.md) for
 the responsive navigation and usability verification checklist.
+See the [Stage 7 testing guide](docs/development/stage-7-job-applications.md) for position
+description intake, evidence mapping, drafting, and export.
 
 ## Documentation
 

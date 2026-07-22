@@ -7,6 +7,7 @@ import { DataPage } from './pages/DataPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { OpportunitiesPage } from './pages/OpportunitiesPage'
+import { ApplicationsPage } from './pages/ApplicationsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { TimelinePage } from './pages/TimelinePage'
 import { TargetsPage } from './pages/TargetsPage'
@@ -19,6 +20,7 @@ export function App() {
     assets: <AssetsPage />,
     timeline: <TimelinePage />,
     opportunities: <OpportunitiesPage />,
+    applications: <ApplicationsPage />,
     targets: <TargetsPage />,
     profile: <ProfilePage />,
     data: <DataPage />,

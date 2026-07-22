@@ -84,6 +84,11 @@ changing domain behaviour or stored data.
 - Evidence mapping, fit/readiness analysis, and unsupported-claim detection.
 - On-screen drafts and DOCX/PDF export for cover letters, selection criteria, tailored CVs, and interview notes.
 
+Stage 7 delivered: pasted and PDF/DOCX/TXT position-description intake, reviewable requirement
+proposals with explicit confirmation, automatic matching to active career assets, weighted fit
+and confidence assessment, visible strengths and evidence gaps, source-grounded application
+drafts, unsupported-claim reporting, audit events, and combined DOCX/PDF application packs.
+
 ## Stage 8 — MVP hardening
 
 - Dashboard integration and next-best-action recommendations.

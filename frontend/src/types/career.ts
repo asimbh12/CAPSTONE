@@ -276,3 +276,51 @@ export interface TargetSuggestion {
   title: string; description: string; target_type: string; rationale: string; milestones: string[]; criteria: CriterionInput[]
 }
 export interface TargetSuggestionResponse { provider: string; suggestions: TargetSuggestion[] }
+export interface ApplicationRequirement {
+  id: string
+  title: string
+  description: string
+  requirement_type: 'essential' | 'desirable'
+  weight: number
+  asset_ids: string[]
+  coverage: number
+  confidence: number
+  explanation: string
+  sort_order: number
+}
+
+export interface ApplicationAssessment {
+  id: string
+  version: number
+  fit_score: number
+  overall_confidence: number
+  strengths: string[]
+  gaps: string[]
+  recommendations: string[]
+  created_at: string
+}
+
+export interface ApplicationDraft {
+  id: string
+  draft_type: 'cover_letter' | 'selection_criteria' | 'tailored_cv' | 'interview_notes'
+  content: string
+  unsupported_claims: string[]
+  provider: string
+  created_at: string
+}
+
+export interface JobApplication {
+  id: string
+  role_title: string
+  organisation: string
+  position_description: string
+  source_url: string
+  document_id: string | null
+  status: string
+  requirements_confirmed: boolean
+  created_at: string
+  updated_at: string
+  requirements: ApplicationRequirement[]
+  assessment: ApplicationAssessment | null
+  drafts: ApplicationDraft[]
+}

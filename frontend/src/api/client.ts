@@ -31,6 +31,7 @@ import type {
   CriterionInput,
   CriterionAssessmentInput,
   ReadinessAssessment,
+  JobApplication,
 } from '../types/career'
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api'
@@ -144,6 +145,12 @@ export const careerApi = {
   assessTarget: (targetId: string, criteria: CriterionAssessmentInput[]) => request<ReadinessAssessment>(`/targets/${targetId}/assessments`, { method: 'POST', body: JSON.stringify({ criteria }) }),
   autoMapTarget: (targetId: string) => request<ReadinessAssessment>(`/targets/${targetId}/auto-map`, { method: 'POST' }),
   suggestTargets: () => request<TargetSuggestionResponse>('/targets/suggestions', { method: 'POST' }),
+  listApplications: () => request<{ items: JobApplication[]; total: number }>('/applications'),
+  createApplication: (payload: { role_title: string; organisation: string; position_description: string; source_url: string; confirmed_public_information: boolean }) => request<JobApplication>('/applications', { method: 'POST', body: JSON.stringify(payload) }),
+  uploadApplication: (formData: FormData) => request<JobApplication>('/applications/documents', { method: 'POST', body: formData }),
+  confirmApplicationRequirements: (id: string, application: JobApplication) => request<JobApplication>(`/applications/${id}/requirements`, { method: 'PUT', body: JSON.stringify({ confirmed: true, requirements: application.requirements.map(({ title, description, requirement_type, weight }) => ({ title, description, requirement_type, weight })) }) }),
+  assessApplication: (id: string) => request<JobApplication>(`/applications/${id}/assess`, { method: 'POST' }),
+  generateApplicationDrafts: (id: string) => request<JobApplication>(`/applications/${id}/drafts`, { method: 'POST' }),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`

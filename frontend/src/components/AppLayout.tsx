@@ -27,7 +27,7 @@ import { type ReactNode, useState } from 'react'
 
 import { useApiHealth } from '../hooks/useApiHealth'
 
-export type PageKey = 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'targets' | 'profile' | 'data'
+export type PageKey = 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'applications' | 'targets' | 'profile' | 'data'
 
 interface AppLayoutProps {
   page: PageKey
@@ -42,6 +42,7 @@ const navigation: Array<{ key: PageKey; label: string; icon: ReactNode }> = [
   { key: 'assets', label: 'Career assets', icon: <FolderCopyOutlined /> },
   { key: 'timeline', label: 'Timeline', icon: <TimelineOutlined /> },
   { key: 'opportunities', label: 'Opportunities', icon: <WorkOutlineOutlined /> },
+  { key: 'applications', label: 'Job applications', icon: <WorkOutlineOutlined /> },
   { key: 'targets', label: 'Targets & readiness', icon: <TrackChangesOutlined /> },
   { key: 'profile', label: 'Profile & goals', icon: <AccountCircleOutlined /> },
   { key: 'data', label: 'Data safety', icon: <BackupOutlined /> },

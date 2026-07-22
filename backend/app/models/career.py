@@ -191,6 +191,70 @@ class OpportunityAssessment(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now, index=True)
 
 
+class JobApplication(SQLModel, table=True):
+    __tablename__ = "job_applications"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    role_title: str = Field(max_length=300, index=True)
+    organisation: str = Field(default="", max_length=250)
+    position_description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    source_url: str = Field(default="", max_length=1000)
+    document_id: UUID | None = Field(default=None, foreign_key="documents.id")
+    status: str = Field(default="draft", max_length=30, index=True)
+    requirements_confirmed: bool = False
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class ApplicationRequirement(SQLModel, table=True):
+    __tablename__ = "application_requirements"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    application_id: UUID = Field(
+        foreign_key="job_applications.id", index=True, ondelete="CASCADE"
+    )
+    title: str = Field(max_length=300)
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    requirement_type: str = Field(default="essential", max_length=30)
+    weight: float = Field(default=1.0)
+    sort_order: int = 0
+    asset_ids_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    coverage: float = 0
+    confidence: float = 0
+    explanation: str = Field(default="", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ApplicationAssessment(SQLModel, table=True):
+    __tablename__ = "application_assessments"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    application_id: UUID = Field(
+        foreign_key="job_applications.id", index=True, ondelete="CASCADE"
+    )
+    version: int
+    fit_score: float
+    overall_confidence: float
+    strengths_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    gaps_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    recommendations_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class ApplicationDraft(SQLModel, table=True):
+    __tablename__ = "application_drafts"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    application_id: UUID = Field(
+        foreign_key="job_applications.id", index=True, ondelete="CASCADE"
+    )
+    draft_type: str = Field(max_length=40, index=True)
+    content: str = Field(default="", sa_column=Column(Text, nullable=False))
+    unsupported_claims_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    provider: str = Field(default="grounded_template", max_length=50)
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
 class Target(SQLModel, table=True):
     __tablename__ = "targets"
 
