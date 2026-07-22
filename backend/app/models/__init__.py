@@ -18,6 +18,7 @@ from app.models.career import (
     StrategicGoal,
     Target,
     TargetCriterion,
+    TargetGoalLink,
     Theme,
 )
 from app.models.system_metadata import SystemMetadata
@@ -42,6 +43,7 @@ __all__ = [
     "ReadinessAssessment",
     "Target",
     "TargetCriterion",
+    "TargetGoalLink",
     "SystemMetadata",
     "Theme",
 ]

@@ -11,12 +11,16 @@ from app.models.career import (
     CriterionEvidenceLink,
     EvidenceItem,
     ReadinessAssessment,
+    StrategicGoal,
     Target,
     TargetCriterion,
+    TargetGoalLink,
 )
 from app.schemas.targets import (
     CriterionAssessmentRead,
     CriterionRead,
+    GoalReadinessRead,
+    GoalTrajectoryPoint,
     ReadinessInput,
     ReadinessRead,
     TargetRead,
@@ -98,9 +102,108 @@ def target_read(session: Session, target: Target) -> TargetRead:
     ).all()
     return TargetRead(
         **target.model_dump(),
+        goal_ids=list(
+            session.exec(
+                select(TargetGoalLink.goal_id).where(TargetGoalLink.target_id == target.id)
+            ).all()
+        ),
         criteria=[criterion_read(session, criterion) for criterion in criteria],
         latest_assessment=latest_readiness(session, target.id),
     )
+
+
+def replace_target_goals(session: Session, target: Target, goal_ids: list[UUID]) -> None:
+    unique_ids = list(dict.fromkeys(goal_ids))
+    if unique_ids:
+        goals = session.exec(
+            select(StrategicGoal).where(col(StrategicGoal.id).in_(unique_ids))
+        ).all()
+        if len(goals) != len(unique_ids):
+            raise HTTPException(status_code=422, detail="One or more strategic goals do not exist")
+    existing = session.exec(
+        select(TargetGoalLink).where(TargetGoalLink.target_id == target.id)
+    ).all()
+    existing_by_goal = {link.goal_id: link for link in existing}
+    for goal_id, link in existing_by_goal.items():
+        if goal_id not in unique_ids:
+            session.delete(link)
+    for goal_id in unique_ids:
+        if goal_id not in existing_by_goal:
+            session.add(TargetGoalLink(target_id=target.id, goal_id=goal_id))
+
+
+def goal_readiness(session: Session) -> list[GoalReadinessRead]:
+    goals = session.exec(
+        select(StrategicGoal)
+        .where(StrategicGoal.status == "active")
+        .order_by(col(StrategicGoal.created_at))
+    ).all()
+    targets = {target.id: target for target in session.exec(select(Target)).all()}
+    links = session.exec(select(TargetGoalLink)).all()
+    target_ids_by_goal: dict[UUID, list[UUID]] = {}
+    for link in links:
+        if link.target_id in targets:
+            target_ids_by_goal.setdefault(link.goal_id, []).append(link.target_id)
+    result: list[GoalReadinessRead] = []
+    for goal in goals:
+        target_ids = target_ids_by_goal.get(goal.id, [])
+        assessments = session.exec(
+            select(ReadinessAssessment)
+            .where(col(ReadinessAssessment.target_id).in_(target_ids))
+            .order_by(col(ReadinessAssessment.created_at), col(ReadinessAssessment.version))
+        ).all() if target_ids else []
+        latest_by_target: dict[UUID, ReadinessAssessment] = {}
+        trajectory: list[GoalTrajectoryPoint] = []
+        for assessment in assessments:
+            latest_by_target[assessment.target_id] = assessment
+            current = list(latest_by_target.values())
+            trajectory.append(
+                GoalTrajectoryPoint(
+                    created_at=assessment.created_at,
+                    readiness_score=round(
+                        sum(item.readiness_score for item in current) / len(current), 1
+                    ),
+                    overall_confidence=round(
+                        sum(item.overall_confidence for item in current) / len(current), 1
+                    ),
+                    assessed_target_count=len(current),
+                )
+            )
+        readiness_score = trajectory[-1].readiness_score if trajectory else None
+        confidence = trajectory[-1].overall_confidence if trajectory else None
+        trend = (
+            round(trajectory[-1].readiness_score - trajectory[-2].readiness_score, 1)
+            if len(trajectory) > 1 else None
+        )
+        if not target_ids:
+            readiness_status = "not_mapped"
+        elif not trajectory:
+            readiness_status = "not_assessed"
+        elif len(latest_by_target) < len(target_ids):
+            readiness_status = "partially_assessed"
+        elif readiness_score is not None and readiness_score >= 75:
+            readiness_status = "on_track"
+        elif readiness_score is not None and readiness_score >= 50:
+            readiness_status = "progressing"
+        else:
+            readiness_status = "needs_attention"
+        result.append(
+            GoalReadinessRead(
+                goal_id=goal.id,
+                title=goal.title,
+                horizon=goal.horizon,
+                target_date=goal.target_date,
+                linked_target_ids=target_ids,
+                linked_target_titles=[targets[target_id].title for target_id in target_ids],
+                assessed_target_count=len(latest_by_target),
+                readiness_score=readiness_score,
+                overall_confidence=confidence,
+                trend=trend,
+                status=readiness_status,
+                trajectory=trajectory,
+            )
+        )
+    return result
 
 
 def replace_mappings(

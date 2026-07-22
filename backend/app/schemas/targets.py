@@ -33,6 +33,10 @@ class CriterionMappingInput(ApiModel):
     evidence_ids: list[UUID] = Field(default_factory=list, max_length=500)
 
 
+class TargetGoalMappingInput(ApiModel):
+    goal_ids: list[UUID] = Field(default_factory=list, max_length=50)
+
+
 class CriterionRead(ApiModel):
     id: UUID
     title: str
@@ -90,10 +94,33 @@ class TargetRead(ApiModel):
     status: str
     target_date: date | None
     provenance: str
+    goal_ids: list[UUID]
     criteria: list[CriterionRead]
     latest_assessment: ReadinessRead | None
     created_at: datetime
     updated_at: datetime
+
+
+class GoalTrajectoryPoint(ApiModel):
+    created_at: datetime
+    readiness_score: float
+    overall_confidence: float
+    assessed_target_count: int
+
+
+class GoalReadinessRead(ApiModel):
+    goal_id: UUID
+    title: str
+    horizon: str
+    target_date: date | None
+    linked_target_ids: list[UUID]
+    linked_target_titles: list[str]
+    assessed_target_count: int
+    readiness_score: float | None
+    overall_confidence: float | None
+    trend: float | None
+    status: str
+    trajectory: list[GoalTrajectoryPoint]
 
 
 class TargetSuggestion(ApiModel):

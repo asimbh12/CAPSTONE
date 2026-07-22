@@ -65,7 +65,8 @@ search and filters, archive handling, next actions, audit events, and overview s
 Stage 6 delivered: user-adopted targets, positive weighted criteria, career asset and evidence
 mappings, versioned deterministic readiness and confidence snapshots, strengths, gaps,
 recommended actions, audit events, and Gemini trajectory suggestions that remain unadopted until
-the user explicitly reviews and saves them.
+the user explicitly reviews and saves them. Strategic-goal mappings aggregate linked target
+readiness and preserve dated progress trajectories across assessment versions.
 
 ## Stage 6.5 — Interface consolidation
 

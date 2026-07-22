@@ -23,10 +23,12 @@ from app.schemas.targets import (
     CriterionInput,
     CriterionMappingInput,
     CriterionRead,
+    GoalReadinessRead,
     ProviderTargetMappingResponse,
     ProviderTargetSuggestionResponse,
     ReadinessInput,
     ReadinessRead,
+    TargetGoalMappingInput,
     TargetInput,
     TargetRead,
     TargetSuggestionResponse,
@@ -37,8 +39,10 @@ from app.services.targets import (
     criterion_read,
     get_criterion_or_404,
     get_target_or_404,
+    goal_readiness,
     readiness_read,
     replace_mappings,
+    replace_target_goals,
     target_read,
 )
 
@@ -50,6 +54,11 @@ SessionDependency = Annotated[Session, Depends(get_session)]
 def list_targets(session: SessionDependency) -> list[TargetRead]:
     targets = session.exec(select(Target).order_by(col(Target.updated_at).desc())).all()
     return [target_read(session, target) for target in targets if target.status != "archived"]
+
+
+@router.get("/goal-readiness", response_model=list[GoalReadinessRead])
+def list_goal_readiness(session: SessionDependency) -> list[GoalReadinessRead]:
+    return goal_readiness(session)
 
 
 @router.post("", response_model=TargetRead, status_code=status.HTTP_201_CREATED)
@@ -84,6 +93,23 @@ def update_target(target_id: UUID, payload: TargetInput, session: SessionDepende
     record_audit(session, entity_type="target", entity_id=target.id, action="updated")
     session.commit()
     session.refresh(target)
+    return target_read(session, target)
+
+
+@router.put("/{target_id}/goals", response_model=TargetRead)
+def map_target_goals(
+    target_id: UUID, payload: TargetGoalMappingInput, session: SessionDependency
+) -> TargetRead:
+    target = get_target_or_404(session, target_id)
+    replace_target_goals(session, target, payload.goal_ids)
+    record_audit(
+        session,
+        entity_type="target",
+        entity_id=target.id,
+        action="strategic_goals_mapped",
+        details={"goal_ids": payload.goal_ids},
+    )
+    session.commit()
     return target_read(session, target)
 
 

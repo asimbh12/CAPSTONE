@@ -5,6 +5,10 @@ evidence mappings, and immutable versioned readiness assessments. Readiness is t
 of criterion coverage. Assessment confidence is displayed separately; it is not a success
 probability and does not inflate readiness.
 
+Strategic goals can be mapped to one or more targets. Goal readiness averages the latest assessed
+linked targets; unassessed targets are reported separately and are not silently scored as zero.
+Every saved target assessment adds a dated point to the goal's progress trajectory.
+
 AI can suggest up to three trajectories with milestones and criteria when Gemini is configured.
 Suggestions remain transient and cannot affect goals or readiness until the user reviews, edits
 and explicitly adopts one.
@@ -13,11 +17,12 @@ and explicitly adopts one.
 
 1. Open **Targets** and create a target with at least two positively weighted criteria.
 2. Map career assets to each criterion. Evidence belonging to selected assets is mapped with it.
-3. Enter coverage, confidence, an explanation and recommended action for each criterion.
-4. Create an assessment and verify readiness, separate confidence, strengths, gaps and actions.
-5. Change a mapping or assessment and assess again. Confirm the version increases.
-6. Request AI suggestions. Confirm they remain unadopted until reviewed and saved.
-7. Select **Map existing evidence with AI** on an adopted target. Confirm relevant active assets
+3. Map each strategic goal to the targets that contribute to it and verify its goal-readiness card.
+4. Enter coverage, confidence, an explanation and recommended action for each criterion.
+5. Create an assessment and verify readiness, separate confidence, strengths, gaps and actions.
+6. Change a mapping or assessment and assess again. Confirm the version increases.
+7. Request AI suggestions. Confirm they remain unadopted until reviewed and saved.
+8. Select **Map existing evidence with AI** on an adopted target. Confirm relevant active assets
    and their evidence are mapped to each criterion, a new assessment version is created, and any
    mappings previously entered by the user remain present.
 

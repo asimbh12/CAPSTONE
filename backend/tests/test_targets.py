@@ -104,6 +104,57 @@ def test_readiness_requires_every_current_criterion(client: TestClient) -> None:
     assert response.status_code == 422
 
 
+def test_strategic_goal_mapping_builds_readiness_trajectory(client: TestClient) -> None:
+    goal = client.post(
+        "/api/goals",
+        json={
+            "title": "Lead national research capability",
+            "description": "Build toward national research leadership",
+            "horizon": "long_term",
+            "target_date": "2030-12-31",
+        },
+    ).json()
+    target = client.post(
+        "/api/targets",
+        json={
+            "title": "National research centre director",
+            "criteria": [{"title": "National leadership", "weight": 1}],
+        },
+    ).json()
+    mapped = client.put(
+        f"/api/targets/{target['id']}/goals", json={"goal_ids": [goal["id"]]}
+    )
+    assert mapped.status_code == 200
+    assert mapped.json()["goal_ids"] == [goal["id"]]
+    criterion_id = target["criteria"][0]["id"]
+    for coverage in (40, 70):
+        response = client.post(
+            f"/api/targets/{target['id']}/assessments",
+            json={
+                "criteria": [
+                    {
+                        "criterion_id": criterion_id,
+                        "coverage": coverage,
+                        "confidence": 80,
+                        "explanation": "Versioned progress evidence",
+                        "recommended_action": "Continue building national evidence",
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+
+    progress = client.get("/api/targets/goal-readiness")
+    assert progress.status_code == 200
+    readiness = progress.json()[0]
+    assert readiness["goal_id"] == goal["id"]
+    assert readiness["linked_target_ids"] == [target["id"]]
+    assert readiness["readiness_score"] == 70
+    assert readiness["trend"] == 30
+    assert readiness["status"] == "progressing"
+    assert [point["readiness_score"] for point in readiness["trajectory"]] == [40, 70]
+
+
 def test_ai_mapping_links_existing_assets_and_creates_assessment(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -254,8 +254,17 @@ export interface ReadinessAssessment {
 }
 export interface Target {
   id: string; title: string; description: string; target_type: string; status: string; target_date: string | null
-  provenance: string; criteria: TargetCriterion[]; latest_assessment: ReadinessAssessment | null
+  provenance: string; goal_ids: string[]; criteria: TargetCriterion[]; latest_assessment: ReadinessAssessment | null
   created_at: string; updated_at: string
+}
+export interface GoalTrajectoryPoint {
+  created_at: string; readiness_score: number; overall_confidence: number; assessed_target_count: number
+}
+export interface GoalReadiness {
+  goal_id: string; title: string; horizon: string; target_date: string | null
+  linked_target_ids: string[]; linked_target_titles: string[]; assessed_target_count: number
+  readiness_score: number | null; overall_confidence: number | null; trend: number | null
+  status: string; trajectory: GoalTrajectoryPoint[]
 }
 export interface TargetInput {
   title: string; description: string; target_type: string; status: string; target_date: string | null

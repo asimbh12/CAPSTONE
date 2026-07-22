@@ -205,6 +205,16 @@ class Target(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now)
 
 
+class TargetGoalLink(SQLModel, table=True):
+    __tablename__ = "target_goal_links"
+    __table_args__ = (UniqueConstraint("target_id", "goal_id"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    target_id: UUID = Field(foreign_key="targets.id", index=True, ondelete="CASCADE")
+    goal_id: UUID = Field(foreign_key="strategic_goals.id", index=True, ondelete="CASCADE")
+    created_at: datetime = Field(default_factory=utc_now)
+
+
 class TargetCriterion(SQLModel, table=True):
     __tablename__ = "target_criteria"
 
