@@ -131,6 +131,7 @@ export const careerApi = {
   addCriterion: (targetId: string, payload: CriterionInput) => request<TargetCriterion>(`/targets/${targetId}/criteria`, { method: 'POST', body: JSON.stringify(payload) }),
   mapCriterion: (criterionId: string, assetIds: string[], evidenceIds: string[]) => request<TargetCriterion>(`/targets/criteria/${criterionId}/mappings`, { method: 'PUT', body: JSON.stringify({ asset_ids: assetIds, evidence_ids: evidenceIds }) }),
   assessTarget: (targetId: string, criteria: CriterionAssessmentInput[]) => request<ReadinessAssessment>(`/targets/${targetId}/assessments`, { method: 'POST', body: JSON.stringify({ criteria }) }),
+  autoMapTarget: (targetId: string) => request<ReadinessAssessment>(`/targets/${targetId}/auto-map`, { method: 'POST' }),
   suggestTargets: () => request<TargetSuggestionResponse>('/targets/suggestions', { method: 'POST' }),
 }
 

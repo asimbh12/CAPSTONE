@@ -1,4 +1,9 @@
+import json
+
+import pytest
 from fastapi.testclient import TestClient
+
+from app.core.config import get_settings
 
 
 def test_target_mapping_and_versioned_readiness(client: TestClient) -> None:
@@ -97,3 +102,87 @@ def test_readiness_requires_every_current_criterion(client: TestClient) -> None:
     ).json()
     response = client.post(f"/api/targets/{target['id']}/assessments", json={"criteria": []})
     assert response.status_code == 422
+
+
+def test_ai_mapping_links_existing_assets_and_creates_assessment(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asset = client.post(
+        "/api/assets",
+        json={
+            "title": "HDR Director",
+            "description": "Supervised and graduated higher degree research candidates",
+            "category": "Research leadership",
+        },
+    ).json()
+    evidence = client.post(
+        f"/api/assets/{asset['id']}/evidence",
+        json={
+            "title": "Official university profile",
+            "description": "Public record of HDR leadership",
+            "source_url": "https://example.org/profile",
+        },
+    ).json()
+    target = client.post(
+        "/api/targets",
+        json={
+            "title": "Research centre director",
+            "criteria": [{"title": "HDR mentorship", "weight": 1}],
+        },
+    ).json()
+    criterion_id = target["criteria"][0]["id"]
+    manual_asset = client.post(
+        "/api/assets",
+        json={
+            "title": "Research program leadership",
+            "description": "User-confirmed supporting context",
+            "category": "Leadership",
+        },
+    ).json()
+    assert (
+        client.put(
+            f"/api/targets/criteria/{criterion_id}/mappings",
+            json={"asset_ids": [manual_asset["id"]], "evidence_ids": []},
+        ).status_code
+        == 200
+    )
+
+    class FakeResponse:
+        text = json.dumps(
+            {
+                "criteria": [
+                    {
+                        "criterion_id": criterion_id,
+                        "asset_ids": [asset["id"], "not-a-real-id"],
+                        "coverage": 85,
+                        "confidence": 90,
+                        "explanation": "HDR Director demonstrates sustained mentorship.",
+                        "recommended_action": "Document graduation outcomes.",
+                    }
+                ]
+            }
+        )
+
+    class FakeModels:
+        @staticmethod
+        def generate_content(**kwargs: object) -> FakeResponse:
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            self.models = FakeModels()
+
+    monkeypatch.setenv("CAPSTONE_AI_PROVIDER", "gemini")
+    monkeypatch.setenv("CAPSTONE_GEMINI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("google.genai.Client", FakeClient)
+
+    response = client.post(f"/api/targets/{target['id']}/auto-map")
+    assert response.status_code == 200
+    report = response.json()
+    assert report["readiness_score"] == 85
+    assert report["strengths"] == ["HDR mentorship"]
+    assert set(report["criteria"][0]["asset_ids"]) == {manual_asset["id"], asset["id"]}
+    assert report["criteria"][0]["evidence_ids"] == [evidence["id"]]
+    updated = client.get("/api/targets").json()[0]
+    assert set(updated["criteria"][0]["asset_ids"]) == {manual_asset["id"], asset["id"]}

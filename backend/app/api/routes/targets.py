@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -11,15 +12,18 @@ from app.models.career import (
     AiOperation,
     CareerAsset,
     CareerProfile,
+    EvidenceItem,
     Provenance,
     StrategicGoal,
     Target,
     TargetCriterion,
 )
 from app.schemas.targets import (
+    CriterionAssessmentInput,
     CriterionInput,
     CriterionMappingInput,
     CriterionRead,
+    ProviderTargetMappingResponse,
     ProviderTargetSuggestionResponse,
     ReadinessInput,
     ReadinessRead,
@@ -144,6 +148,145 @@ def create_assessment(
         action="created",
         source=Provenance.RULE.value,
         details={"target_id": str(target.id), "version": assessment.version},
+    )
+    session.commit()
+    session.refresh(assessment)
+    return readiness_read(session, assessment)
+
+
+@router.post("/{target_id}/auto-map", response_model=ReadinessRead)
+def auto_map_target(target_id: UUID, session: SessionDependency) -> ReadinessRead:
+    """Semantically map active assets to target criteria and create a readiness version."""
+    settings = get_settings()
+    if settings.ai_provider.lower() != "gemini" or not settings.gemini_api_key:
+        raise HTTPException(status_code=409, detail="Gemini is not configured for evidence mapping")
+    target = get_target_or_404(session, target_id)
+    if target.status != "adopted":
+        raise HTTPException(status_code=409, detail="Adopt the target before mapping evidence")
+    criteria = session.exec(
+        select(TargetCriterion)
+        .where(TargetCriterion.target_id == target.id)
+        .order_by(col(TargetCriterion.sort_order), col(TargetCriterion.created_at))
+    ).all()
+    assets = session.exec(
+        select(CareerAsset)
+        .where(CareerAsset.status != "archived")
+        .order_by(col(CareerAsset.updated_at).desc())
+        .limit(300)
+    ).all()
+    if not criteria:
+        raise HTTPException(status_code=422, detail="The target has no readiness criteria")
+    if not assets:
+        raise HTTPException(status_code=422, detail="No active career assets are available to map")
+
+    evidence_by_asset: dict[UUID, list[EvidenceItem]] = {}
+    for evidence in session.exec(select(EvidenceItem)).all():
+        evidence_by_asset.setdefault(evidence.asset_id, []).append(evidence)
+
+    asset_context = [
+        {
+            "id": str(asset.id),
+            "title": asset.title,
+            "category": asset.category,
+            "description": asset.description,
+            "impact_summary": asset.impact_summary,
+            "role": asset.role,
+            "tags": json.loads(asset.tags_json),
+            "keywords": json.loads(asset.keywords_json),
+            "evidence": [
+                {
+                    "id": str(evidence.id),
+                    "title": evidence.title,
+                    "description": evidence.description,
+                    "source_url": evidence.source_url,
+                }
+                for evidence in evidence_by_asset.get(asset.id, [])
+            ],
+        }
+        for asset in assets
+    ]
+    criterion_context = [
+        {"id": str(item.id), "title": item.title, "description": item.description}
+        for item in criteria
+    ]
+    from google import genai
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    response = client.models.generate_content(
+        model=settings.gemini_model,
+        contents=(
+            "Map the supplied public career assets to every target criterion. Use only asset IDs "
+            "from the supplied list. Match semantically, including equivalent roles, "
+            "achievements, scale and impact; do not rely only on exact title words. Multiple "
+            "assets may support a criterion and one asset may support several criteria. Coverage "
+            "is demonstrated current readiness from 0-100, not whether the future target itself "
+            "is already achieved. Confidence reflects evidence quality from 0-100. Do not treat "
+            "an aspiration or missing award as an achievement. Explain the factual basis and give "
+            "a specific action only for a genuine gap. "
+            "Return exactly one result for every criterion ID.\n\n"
+            f"TARGET: {target.title}\nCRITERIA: {criterion_context}\nACTIVE ASSETS: {asset_context}"
+        ),
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": ProviderTargetMappingResponse,
+            "temperature": 0.1,
+        },
+    )
+    provider_result = ProviderTargetMappingResponse.model_validate_json(response.text or "{}")
+    asset_by_id = {str(asset.id): asset for asset in assets}
+    result_by_criterion = {item.criterion_id: item for item in provider_result.criteria}
+    assessment_inputs: list[CriterionAssessmentInput] = []
+    for criterion in criteria:
+        mapped = result_by_criterion.get(str(criterion.id))
+        existing = criterion_read(session, criterion)
+        ai_assets = list(
+            dict.fromkeys(
+                asset_by_id[asset_id].id
+                for asset_id in (mapped.asset_ids if mapped else [])
+                if asset_id in asset_by_id
+            )
+        )
+        valid_assets = list(dict.fromkeys([*existing.asset_ids, *ai_assets]))
+        ai_evidence_ids = list(
+            dict.fromkeys(
+                evidence.id
+                for asset_id in ai_assets
+                for evidence in evidence_by_asset.get(asset_id, [])
+            )
+        )
+        evidence_ids = list(dict.fromkeys([*existing.evidence_ids, *ai_evidence_ids]))
+        replace_mappings(session, criterion, valid_assets, evidence_ids)
+        assessment_inputs.append(
+            CriterionAssessmentInput(
+                criterion_id=criterion.id,
+                coverage=max(0, min(float(mapped.coverage), 100)) if mapped else 0,
+                confidence=max(0, min(float(mapped.confidence), 100)) if mapped else 0,
+                explanation=mapped.explanation if mapped else "AI returned no assessment.",
+                recommended_action=mapped.recommended_action
+                if mapped
+                else "Review this criterion manually.",
+            )
+        )
+    assessment = assess_target(session, target, ReadinessInput(criteria=assessment_inputs))
+    record_audit(
+        session,
+        entity_type="readiness_assessment",
+        entity_id=assessment.id,
+        action="ai_evidence_mapped",
+        source=Provenance.AI.value,
+        details={"target_id": str(target.id), "version": assessment.version},
+    )
+    session.add(
+        AiOperation(
+            operation="map_target_evidence",
+            entity_type="target",
+            entity_id=str(target.id),
+            provider="gemini",
+            model=settings.gemini_model,
+            status="completed",
+            input_characters=len(str(asset_context)) + len(str(criterion_context)),
+            output_characters=len(response.text or ""),
+        )
     )
     session.commit()
     session.refresh(assessment)

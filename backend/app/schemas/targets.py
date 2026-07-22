@@ -129,3 +129,16 @@ class ProviderTargetSuggestion(ApiModel):
 
 class ProviderTargetSuggestionResponse(ApiModel):
     suggestions: list[ProviderTargetSuggestion] = Field(default_factory=list)
+
+
+class ProviderCriterionMapping(ApiModel):
+    criterion_id: str = ""
+    asset_ids: list[str] = Field(default_factory=list)
+    coverage: float = 0
+    confidence: float = 0
+    explanation: str = ""
+    recommended_action: str = ""
+
+
+class ProviderTargetMappingResponse(ApiModel):
+    criteria: list[ProviderCriterionMapping] = Field(default_factory=list)
