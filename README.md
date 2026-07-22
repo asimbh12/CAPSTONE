@@ -29,6 +29,11 @@ board, media, and custom opportunities. It provides lifecycle tracking, deadline
 next actions, filters, and reproducible priority rankings. Each assessment preserves its
 inputs and scoring algorithm version; urgency is deliberately displayed separately.
 
+Stage 6 adds a **Targets** workspace for defining desired roles and trajectories, mapping
+career assets and evidence to weighted target criteria, and producing versioned readiness
+assessments. Gemini can suggest trajectories from the user's existing public profile and
+career assets; suggestions remain drafts until the user explicitly adopts them.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -46,6 +51,8 @@ See the [Stage 4 onboarding guide](docs/development/stage-4-onboarding.md) for C
 ingestion.
 See the [Stage 5 testing guide](docs/development/stage-5-opportunities.md) for opportunity
 tracking and prioritisation.
+See the [Stage 6 testing guide](docs/development/stage-6-targets-readiness.md) for target
+definition, evidence mapping, AI suggestions, and readiness assessments.
 
 ## Documentation
 

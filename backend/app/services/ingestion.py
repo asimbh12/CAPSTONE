@@ -195,9 +195,7 @@ def is_thin_scholar_continuation(source: PublicProfileSource, text: str) -> bool
     return source.source_type == "google_scholar" and offset > 0 and len(text) < 5_000
 
 
-def extract_google_scholar_rows(
-    html: str, source_label: str
-) -> CareerExtractionProposal | None:
+def extract_google_scholar_rows(html: str, source_label: str) -> CareerExtractionProposal | None:
     """Extract every visible Scholar result row without asking an LLM to summarize the list."""
     rows = re.findall(r'<tr[^>]+class="[^"]*gsc_a_tr[^"]*"[^>]*>(.*?)</tr>', html, re.I | re.S)
     assets: list[ProposedAsset] = []

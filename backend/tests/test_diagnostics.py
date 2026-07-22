@@ -10,9 +10,7 @@ from app.services import diagnostics
 def test_profile_diagnostic_is_jsonl_and_redacts_credentials(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        diagnostics, "get_settings", lambda: SimpleNamespace(data_root=tmp_path)
-    )
+    monkeypatch.setattr(diagnostics, "get_settings", lambda: SimpleNamespace(data_root=tmp_path))
 
     diagnostics.write_profile_diagnostic(
         "page_failed",

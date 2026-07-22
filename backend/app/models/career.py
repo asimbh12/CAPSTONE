@@ -191,6 +191,88 @@ class OpportunityAssessment(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now, index=True)
 
 
+class Target(SQLModel, table=True):
+    __tablename__ = "targets"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    title: str = Field(max_length=300, index=True)
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    target_type: str = Field(default="Role", max_length=100, index=True)
+    status: str = Field(default="adopted", max_length=20, index=True)
+    target_date: date | None = None
+    provenance: str = Field(default=Provenance.USER.value, max_length=20)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class TargetCriterion(SQLModel, table=True):
+    __tablename__ = "target_criteria"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    target_id: UUID = Field(foreign_key="targets.id", index=True, ondelete="CASCADE")
+    title: str = Field(max_length=300)
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    weight: float = Field(default=1.0)
+    sort_order: int = Field(default=0)
+    provenance: str = Field(default=Provenance.USER.value, max_length=20)
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
+class CriterionAssetLink(SQLModel, table=True):
+    __tablename__ = "criterion_asset_links"
+    __table_args__ = (UniqueConstraint("criterion_id", "asset_id"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    criterion_id: UUID = Field(foreign_key="target_criteria.id", index=True, ondelete="CASCADE")
+    asset_id: UUID = Field(foreign_key="career_assets.id", index=True, ondelete="CASCADE")
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class CriterionEvidenceLink(SQLModel, table=True):
+    __tablename__ = "criterion_evidence_links"
+    __table_args__ = (UniqueConstraint("criterion_id", "evidence_id"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    criterion_id: UUID = Field(foreign_key="target_criteria.id", index=True, ondelete="CASCADE")
+    evidence_id: UUID = Field(foreign_key="evidence_items.id", index=True, ondelete="CASCADE")
+    created_at: datetime = Field(default_factory=utc_now)
+
+
+class ReadinessAssessment(SQLModel, table=True):
+    __tablename__ = "readiness_assessments"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    target_id: UUID = Field(foreign_key="targets.id", index=True, ondelete="CASCADE")
+    version: int
+    algorithm_version: str = Field(default="target-readiness-v1", max_length=50)
+    readiness_score: float
+    overall_confidence: float
+    strengths_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    gaps_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    recommendations_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
+class CriterionAssessment(SQLModel, table=True):
+    __tablename__ = "criterion_assessments"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    readiness_assessment_id: UUID = Field(
+        foreign_key="readiness_assessments.id", index=True, ondelete="CASCADE"
+    )
+    criterion_id: UUID = Field(foreign_key="target_criteria.id", index=True)
+    criterion_title: str = Field(max_length=300)
+    weight: float
+    normalized_weight: float
+    coverage: float
+    confidence: float
+    explanation: str = Field(default="", sa_column=Column(Text, nullable=False))
+    recommended_action: str = Field(default="", sa_column=Column(Text, nullable=False))
+    asset_ids_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    evidence_ids_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+
+
 class Document(SQLModel, table=True):
     __tablename__ = "documents"
     __table_args__ = (UniqueConstraint("sha256"),)

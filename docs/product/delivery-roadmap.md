@@ -62,6 +62,11 @@ search and filters, archive handling, next actions, audit events, and overview s
 - AI-suggested trajectories and criteria with explicit adoption.
 - Evidence mapping, versioned readiness assessment, gaps, strengths, and recommendations.
 
+Stage 6 delivered: user-adopted targets, positive weighted criteria, career asset and evidence
+mappings, versioned deterministic readiness and confidence snapshots, strengths, gaps,
+recommended actions, audit events, and Gemini trajectory suggestions that remain unadopted until
+the user explicitly reviews and saves them.
+
 ## Stage 7 — Job applications
 
 - Position-description upload and pasted-text ingestion.

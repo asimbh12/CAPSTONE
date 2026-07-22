@@ -9,6 +9,7 @@ import { OnboardingPage } from './pages/OnboardingPage'
 import { OpportunitiesPage } from './pages/OpportunitiesPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { TimelinePage } from './pages/TimelinePage'
+import { TargetsPage } from './pages/TargetsPage'
 
 export function App() {
   const [page, setPage] = useState<PageKey>('overview')
@@ -18,6 +19,7 @@ export function App() {
     assets: <AssetsPage />,
     timeline: <TimelinePage />,
     opportunities: <OpportunitiesPage />,
+    targets: <TargetsPage />,
     profile: <ProfilePage />,
     data: <DataPage />,
   }[page] ?? <Alert severity="error">Unknown page.</Alert>

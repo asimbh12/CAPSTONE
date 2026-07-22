@@ -21,6 +21,13 @@ import type {
   PublicProfileSource,
   Theme,
   TimelineItem,
+  Target,
+  TargetCriterion,
+  TargetInput,
+  TargetSuggestionResponse,
+  CriterionInput,
+  CriterionAssessmentInput,
+  ReadinessAssessment,
 } from '../types/career'
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api'
@@ -118,6 +125,13 @@ export const careerApi = {
   updateOpportunity: (id: string, payload: OpportunityInput) => request<Opportunity>(`/opportunities/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   archiveOpportunity: (id: string) => request<Opportunity>(`/opportunities/${id}/archive`, { method: 'POST' }),
   opportunityAssessments: (id: string) => request<OpportunityAssessment[]>(`/opportunities/${id}/assessments`),
+  listTargets: () => request<Target[]>('/targets'),
+  createTarget: (payload: TargetInput) => request<Target>('/targets', { method: 'POST', body: JSON.stringify(payload) }),
+  updateTarget: (id: string, payload: TargetInput) => request<Target>(`/targets/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  addCriterion: (targetId: string, payload: CriterionInput) => request<TargetCriterion>(`/targets/${targetId}/criteria`, { method: 'POST', body: JSON.stringify(payload) }),
+  mapCriterion: (criterionId: string, assetIds: string[], evidenceIds: string[]) => request<TargetCriterion>(`/targets/criteria/${criterionId}/mappings`, { method: 'PUT', body: JSON.stringify({ asset_ids: assetIds, evidence_ids: evidenceIds }) }),
+  assessTarget: (targetId: string, criteria: CriterionAssessmentInput[]) => request<ReadinessAssessment>(`/targets/${targetId}/assessments`, { method: 'POST', body: JSON.stringify({ criteria }) }),
+  suggestTargets: () => request<TargetSuggestionResponse>('/targets/suggestions', { method: 'POST' }),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`

@@ -221,3 +221,30 @@ export interface OpportunityInput {
   notes: string; source: string; strategic_value: number; probability: number; effort: number; score_input_source: 'user' | 'ai'
 }
 export interface OpportunitySummary { active: number; pursuing: number; closing_soon: number; top_opportunity: Opportunity | null }
+
+export interface TargetCriterion {
+  id: string; title: string; description: string; weight: number; sort_order: number; provenance: string
+  asset_ids: string[]; evidence_ids: string[]
+}
+export interface CriterionInput { title: string; description: string; weight: number; sort_order: number; provenance: 'user' | 'ai' }
+export interface CriterionAssessmentInput { criterion_id: string; coverage: number; confidence: number; explanation: string; recommended_action: string }
+export interface CriterionAssessment extends CriterionAssessmentInput {
+  criterion_title: string; weight: number; normalized_weight: number; asset_ids: string[]; evidence_ids: string[]
+}
+export interface ReadinessAssessment {
+  id: string; version: number; algorithm_version: string; readiness_score: number; overall_confidence: number
+  strengths: string[]; gaps: string[]; recommendations: string[]; criteria: CriterionAssessment[]; created_at: string
+}
+export interface Target {
+  id: string; title: string; description: string; target_type: string; status: string; target_date: string | null
+  provenance: string; criteria: TargetCriterion[]; latest_assessment: ReadinessAssessment | null
+  created_at: string; updated_at: string
+}
+export interface TargetInput {
+  title: string; description: string; target_type: string; status: string; target_date: string | null
+  provenance: 'user' | 'ai'; criteria: CriterionInput[]
+}
+export interface TargetSuggestion {
+  title: string; description: string; target_type: string; rationale: string; milestones: string[]; criteria: CriterionInput[]
+}
+export interface TargetSuggestionResponse { provider: string; suggestions: TargetSuggestion[] }
