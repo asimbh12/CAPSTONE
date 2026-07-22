@@ -155,6 +155,59 @@ def test_strategic_goal_mapping_builds_readiness_trajectory(client: TestClient) 
     assert [point["readiness_score"] for point in readiness["trajectory"]] == [40, 70]
 
 
+def test_ai_goal_assessment_maps_existing_achievements(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    goal = client.post(
+        "/api/goals",
+        json={"title": "IEEE Senior Member", "horizon": "short_term"},
+    ).json()
+    asset = client.post(
+        "/api/assets",
+        json={
+            "title": "International research leadership",
+            "description": "Led international research programs and conferences",
+            "category": "Leadership",
+        },
+    ).json()
+
+    class FakeResponse:
+        text = json.dumps(
+            {
+                "readiness_score": 72,
+                "confidence": 85,
+                "explanation": "Existing leadership demonstrates substantial readiness.",
+                "strengths": ["International research leadership"],
+                "gaps": ["Document IEEE-specific service"],
+                "recommendations": ["Compile IEEE membership and service evidence"],
+                "asset_ids": [asset["id"]],
+            }
+        )
+
+    class FakeModels:
+        @staticmethod
+        def generate_content(**kwargs: object) -> FakeResponse:
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            self.models = FakeModels()
+
+    monkeypatch.setenv("CAPSTONE_AI_PROVIDER", "gemini")
+    monkeypatch.setenv("CAPSTONE_GEMINI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("google.genai.Client", FakeClient)
+
+    response = client.post(f"/api/targets/goals/{goal['id']}/auto-assess")
+    assert response.status_code == 200
+    result = response.json()
+    assert result["readiness_score"] == 72
+    assert result["overall_confidence"] == 85
+    assert result["mapped_asset_ids"] == [asset["id"]]
+    assert result["mapped_asset_titles"] == ["International research leadership"]
+    assert result["trajectory"][0]["readiness_score"] == 72
+
+
 def test_ai_mapping_links_existing_assets_and_creates_assessment(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

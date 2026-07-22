@@ -135,6 +135,7 @@ export const careerApi = {
   opportunityAssessments: (id: string) => request<OpportunityAssessment[]>(`/opportunities/${id}/assessments`),
   listTargets: () => request<Target[]>('/targets'),
   goalReadiness: () => request<GoalReadiness[]>('/targets/goal-readiness'),
+  autoAssessGoal: (goalId: string) => request<GoalReadiness>(`/targets/goals/${goalId}/auto-assess`, { method: 'POST' }),
   mapTargetGoals: (targetId: string, goalIds: string[]) => request<Target>(`/targets/${targetId}/goals`, { method: 'PUT', body: JSON.stringify({ goal_ids: goalIds }) }),
   createTarget: (payload: TargetInput) => request<Target>('/targets', { method: 'POST', body: JSON.stringify(payload) }),
   updateTarget: (id: string, payload: TargetInput) => request<Target>(`/targets/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),

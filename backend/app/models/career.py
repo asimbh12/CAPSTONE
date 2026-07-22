@@ -215,6 +215,25 @@ class TargetGoalLink(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now)
 
 
+class StrategicGoalAssessment(SQLModel, table=True):
+    __tablename__ = "strategic_goal_assessments"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    goal_id: UUID = Field(foreign_key="strategic_goals.id", index=True, ondelete="CASCADE")
+    version: int
+    provider: str = Field(default="gemini", max_length=50)
+    model: str = Field(default="", max_length=100)
+    readiness_score: float
+    overall_confidence: float
+    explanation: str = Field(default="", sa_column=Column(Text, nullable=False))
+    strengths_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    gaps_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    recommendations_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    asset_ids_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    evidence_ids_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+
+
 class TargetCriterion(SQLModel, table=True):
     __tablename__ = "target_criteria"
 

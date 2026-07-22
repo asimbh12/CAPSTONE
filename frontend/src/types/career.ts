@@ -265,6 +265,8 @@ export interface GoalReadiness {
   linked_target_ids: string[]; linked_target_titles: string[]; assessed_target_count: number
   readiness_score: number | null; overall_confidence: number | null; trend: number | null
   status: string; trajectory: GoalTrajectoryPoint[]
+  mapped_asset_ids: string[]; mapped_asset_titles: string[]; strengths: string[]; gaps: string[]
+  recommendations: string[]; explanation: string
 }
 export interface TargetInput {
   title: string; description: string; target_type: string; status: string; target_date: string | null

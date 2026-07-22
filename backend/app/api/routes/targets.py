@@ -15,6 +15,7 @@ from app.models.career import (
     EvidenceItem,
     Provenance,
     StrategicGoal,
+    StrategicGoalAssessment,
     Target,
     TargetCriterion,
 )
@@ -24,6 +25,7 @@ from app.schemas.targets import (
     CriterionMappingInput,
     CriterionRead,
     GoalReadinessRead,
+    ProviderGoalAssessment,
     ProviderTargetMappingResponse,
     ProviderTargetSuggestionResponse,
     ReadinessInput,
@@ -59,6 +61,122 @@ def list_targets(session: SessionDependency) -> list[TargetRead]:
 @router.get("/goal-readiness", response_model=list[GoalReadinessRead])
 def list_goal_readiness(session: SessionDependency) -> list[GoalReadinessRead]:
     return goal_readiness(session)
+
+
+@router.post("/goals/{goal_id}/auto-assess", response_model=GoalReadinessRead)
+def auto_assess_goal(goal_id: UUID, session: SessionDependency) -> GoalReadinessRead:
+    settings = get_settings()
+    if settings.ai_provider.lower() != "gemini" or not settings.gemini_api_key:
+        raise HTTPException(status_code=409, detail="Gemini is not configured for goal assessment")
+    goal = session.get(StrategicGoal, goal_id)
+    if goal is None:
+        raise HTTPException(status_code=404, detail="Strategic goal not found")
+    assets = session.exec(
+        select(CareerAsset).where(CareerAsset.status != "archived").limit(400)
+    ).all()
+    if not assets:
+        raise HTTPException(status_code=422, detail="No active career achievements are available")
+    evidence_by_asset: dict[UUID, list[EvidenceItem]] = {}
+    for evidence in session.exec(select(EvidenceItem)).all():
+        evidence_by_asset.setdefault(evidence.asset_id, []).append(evidence)
+    asset_context = [
+        {
+            "id": str(asset.id),
+            "title": asset.title,
+            "category": asset.category,
+            "description": asset.description,
+            "impact_summary": asset.impact_summary,
+            "role": asset.role,
+            "start_date": str(asset.start_date or ""),
+            "evidence": [
+                {"id": str(item.id), "title": item.title, "description": item.description}
+                for item in evidence_by_asset.get(asset.id, [])
+            ],
+        }
+        for asset in assets
+    ]
+    from google import genai
+
+    response = genai.Client(api_key=settings.gemini_api_key).models.generate_content(
+        model=settings.gemini_model,
+        contents=(
+            "Assess current readiness for the supplied strategic career goal using only the "
+            "supplied public career achievements and evidence. Map every genuinely relevant "
+            "achievement by its supplied ID. Readiness is demonstrated progress toward the goal "
+            "from 0-100, not the probability of future success. Do not claim the goal itself is "
+            "achieved unless evidence explicitly proves it. Identify established strengths, "
+            "genuine gaps, and specific next actions. Confidence reflects evidence quality.\n\n"
+            f"GOAL: {goal.model_dump(mode='json')}\nACHIEVEMENTS: {asset_context}"
+        ),
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": ProviderGoalAssessment,
+            "temperature": 0.1,
+        },
+    )
+    provider_result = ProviderGoalAssessment.model_validate_json(response.text or "{}")
+    assets_by_id = {str(asset.id): asset for asset in assets}
+    mapped_assets = list(
+        dict.fromkeys(
+            assets_by_id[asset_id].id
+            for asset_id in provider_result.asset_ids
+            if asset_id in assets_by_id
+        )
+    )
+    evidence_ids = list(
+        dict.fromkeys(
+            evidence.id
+            for asset_id in mapped_assets
+            for evidence in evidence_by_asset.get(asset_id, [])
+        )
+    )
+    previous = session.exec(
+        select(StrategicGoalAssessment)
+        .where(StrategicGoalAssessment.goal_id == goal.id)
+        .order_by(col(StrategicGoalAssessment.version).desc())
+    ).first()
+    assessment = StrategicGoalAssessment(
+        goal_id=goal.id,
+        version=previous.version + 1 if previous else 1,
+        provider="gemini",
+        model=settings.gemini_model,
+        readiness_score=round(provider_result.readiness_score, 1),
+        overall_confidence=round(provider_result.confidence, 1),
+        explanation=provider_result.explanation,
+        strengths_json=json.dumps(provider_result.strengths),
+        gaps_json=json.dumps(provider_result.gaps),
+        recommendations_json=json.dumps(provider_result.recommendations),
+        asset_ids_json=json.dumps([str(value) for value in mapped_assets]),
+        evidence_ids_json=json.dumps([str(value) for value in evidence_ids]),
+    )
+    session.add(assessment)
+    session.flush()
+    record_audit(
+        session,
+        entity_type="strategic_goal_assessment",
+        entity_id=assessment.id,
+        action="ai_evidence_mapped",
+        source=Provenance.AI.value,
+        details={
+            "goal_id": str(goal.id),
+            "assets": len(mapped_assets),
+            "version": assessment.version,
+        },
+    )
+    session.add(
+        AiOperation(
+            operation="assess_strategic_goal",
+            entity_type="strategic_goal",
+            entity_id=str(goal.id),
+            provider="gemini",
+            model=settings.gemini_model,
+            status="completed",
+            input_characters=len(str(asset_context)),
+            output_characters=len(response.text or ""),
+        )
+    )
+    session.commit()
+    return next(item for item in goal_readiness(session) if item.goal_id == goal.id)
 
 
 @router.post("", response_model=TargetRead, status_code=status.HTTP_201_CREATED)

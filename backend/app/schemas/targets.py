@@ -121,6 +121,22 @@ class GoalReadinessRead(ApiModel):
     trend: float | None
     status: str
     trajectory: list[GoalTrajectoryPoint]
+    mapped_asset_ids: list[UUID] = Field(default_factory=list)
+    mapped_asset_titles: list[str] = Field(default_factory=list)
+    strengths: list[str] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+    explanation: str = ""
+
+
+class ProviderGoalAssessment(ApiModel):
+    readiness_score: float = Field(default=0, ge=0, le=100)
+    confidence: float = Field(default=0, ge=0, le=100)
+    explanation: str = ""
+    strengths: list[str] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+    asset_ids: list[str] = Field(default_factory=list)
 
 
 class TargetSuggestion(ApiModel):

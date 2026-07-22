@@ -12,6 +12,7 @@ from app.models.career import (
     EvidenceItem,
     ReadinessAssessment,
     StrategicGoal,
+    StrategicGoalAssessment,
     Target,
     TargetCriterion,
     TargetGoalLink,
@@ -147,6 +148,68 @@ def goal_readiness(session: Session) -> list[GoalReadinessRead]:
     result: list[GoalReadinessRead] = []
     for goal in goals:
         target_ids = target_ids_by_goal.get(goal.id, [])
+        direct_assessments = session.exec(
+            select(StrategicGoalAssessment)
+            .where(StrategicGoalAssessment.goal_id == goal.id)
+            .order_by(col(StrategicGoalAssessment.version), col(StrategicGoalAssessment.created_at))
+        ).all()
+        if direct_assessments:
+            latest = direct_assessments[-1]
+            direct_trajectory = [
+                GoalTrajectoryPoint(
+                    created_at=item.created_at,
+                    readiness_score=item.readiness_score,
+                    overall_confidence=item.overall_confidence,
+                    assessed_target_count=1,
+                )
+                for item in direct_assessments
+            ]
+            asset_ids = [UUID(value) for value in json.loads(latest.asset_ids_json)]
+            assets = {
+                asset.id: asset.title
+                for asset in session.exec(
+                    select(CareerAsset).where(col(CareerAsset.id).in_(asset_ids))
+                ).all()
+            } if asset_ids else {}
+            trend = (
+                round(
+                    direct_trajectory[-1].readiness_score
+                    - direct_trajectory[-2].readiness_score,
+                    1,
+                )
+                if len(direct_trajectory) > 1 else None
+            )
+            score = latest.readiness_score
+            readiness_status = (
+                "on_track" if score >= 75
+                else "progressing" if score >= 50
+                else "needs_attention"
+            )
+            result.append(
+                GoalReadinessRead(
+                    goal_id=goal.id,
+                    title=goal.title,
+                    horizon=goal.horizon,
+                    target_date=goal.target_date,
+                    linked_target_ids=target_ids,
+                    linked_target_titles=[targets[target_id].title for target_id in target_ids],
+                    assessed_target_count=1,
+                    readiness_score=score,
+                    overall_confidence=latest.overall_confidence,
+                    trend=trend,
+                    status=readiness_status,
+                    trajectory=direct_trajectory,
+                    mapped_asset_ids=asset_ids,
+                    mapped_asset_titles=[
+                        assets[asset_id] for asset_id in asset_ids if asset_id in assets
+                    ],
+                    strengths=json.loads(latest.strengths_json),
+                    gaps=json.loads(latest.gaps_json),
+                    recommendations=json.loads(latest.recommendations_json),
+                    explanation=latest.explanation,
+                )
+            )
+            continue
         assessments = session.exec(
             select(ReadinessAssessment)
             .where(col(ReadinessAssessment.target_id).in_(target_ids))
