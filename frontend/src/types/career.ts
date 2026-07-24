@@ -264,7 +264,7 @@ export interface GoalReadiness {
   goal_id: string; title: string; horizon: string; target_date: string | null
   linked_target_ids: string[]; linked_target_titles: string[]; assessed_target_count: number
   readiness_score: number | null; overall_confidence: number | null; trend: number | null
-  status: string; trajectory: GoalTrajectoryPoint[]
+  status: string; assessment_basis: 'direct_goal_evidence' | 'linked_target_assessments'; trajectory: GoalTrajectoryPoint[]
   mapped_asset_ids: string[]; mapped_asset_titles: string[]; strengths: string[]; gaps: string[]
   recommendations: string[]; explanation: string
 }

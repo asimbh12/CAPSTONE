@@ -57,6 +57,14 @@ class DraftRead(BaseModel):
     created_at: datetime
 
 
+class ProviderApplicationDrafts(BaseModel):
+    cover_letter: str = Field(min_length=300, max_length=30_000)
+    selection_criteria: str = Field(min_length=300, max_length=60_000)
+    tailored_cv: str = Field(min_length=300, max_length=60_000)
+    interview_notes: str = Field(min_length=300, max_length=40_000)
+    unsupported_claims: list[str] = Field(default_factory=list, max_length=50)
+
+
 class ApplicationRead(BaseModel):
     id: UUID
     role_title: str

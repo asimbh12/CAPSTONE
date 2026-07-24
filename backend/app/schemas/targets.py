@@ -120,6 +120,7 @@ class GoalReadinessRead(ApiModel):
     overall_confidence: float | None
     trend: float | None
     status: str
+    assessment_basis: str
     trajectory: list[GoalTrajectoryPoint]
     mapped_asset_ids: list[UUID] = Field(default_factory=list)
     mapped_asset_titles: list[str] = Field(default_factory=list)

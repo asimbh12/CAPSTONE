@@ -30,3 +30,9 @@ and explicitly adopts one.
 
 Target, mapping, adoption and assessment actions are audited. Each assessment preserves criterion
 weights and mapped asset/evidence identifiers as a historical snapshot.
+Strategic-goal trajectory cards now use one consistent 0-100 presentation. Each card identifies
+whether its current evidence basis is a direct career-achievement assessment or an aggregation of
+linked target assessments, while retaining a single dated trajectory format.
+
+Goals can be removed from **Profile & goals** after explicit confirmation. Removal is a soft
+archive: the goal disappears from active planning while its historical assessments remain stored.

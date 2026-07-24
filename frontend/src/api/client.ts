@@ -71,6 +71,7 @@ export const careerApi = {
   listGoals: () => request<Goal[]>('/goals'),
   createGoal: (payload: Pick<Goal, 'title' | 'description' | 'horizon' | 'target_date'>) =>
     request<Goal>('/goals', { method: 'POST', body: JSON.stringify(payload) }),
+  removeGoal: (id: string) => request<void>(`/goals/${id}`, { method: 'DELETE' }),
   listOrganisations: () => request<Organisation[]>('/organisations'),
   createOrganisation: (
     payload: Pick<Organisation, 'name' | 'organisation_type' | 'website' | 'notes'>,

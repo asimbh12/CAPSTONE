@@ -97,6 +97,20 @@ def test_document_upload_requires_public_information_confirmation(client: TestCl
     assert response.status_code == 422
 
 
+def test_strategic_goal_can_be_removed_without_destroying_history(client: TestClient) -> None:
+    created = client.post(
+        "/api/goals",
+        json={"title": "Complete an achieved milestone", "horizon": "short_term"},
+    )
+    assert created.status_code == 201
+    goal_id = created.json()["id"]
+
+    removed = client.delete(f"/api/goals/{goal_id}")
+    assert removed.status_code == 204
+    assert all(goal["id"] != goal_id for goal in client.get("/api/goals").json())
+    assert client.delete(f"/api/goals/{goal_id}").status_code == 404
+
+
 def test_timeline_duplicate_review_requires_confirmation_and_archives_rejected_record(
     client: TestClient,
 ) -> None:

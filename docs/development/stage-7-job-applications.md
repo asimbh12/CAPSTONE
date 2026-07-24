@@ -2,19 +2,23 @@
 
 ## What is included
 
-- Paste a public position description or upload PDF, DOCX, or TXT.
+- Choose a dedicated paste-text or upload-document path for a public position description.
+- Upload PDF, DOCX, or TXT files up to 20 MB; originals remain in local storage.
 - Extract a reviewable requirement proposal without changing career records.
 - Require explicit confirmation before evidence mapping.
 - Automatically map active career assets and calculate fit and evidence confidence.
 - Show strengths, gaps, explanations, and recommendations.
-- Generate grounded cover letter, selection criteria, tailored CV, and interview notes.
+- Generate comprehensive, role-specific cover letter, selection criteria, tailored CV, and
+  interview notes with Gemini; use an explicitly labelled local fallback if Gemini is unavailable.
+- Show evidence limitations reported during drafting and replace earlier drafts when regenerating.
 - Export the latest materials as a combined DOCX or PDF application pack.
 
 ## Interactive test
 
 1. Open `http://127.0.0.1:5173` and choose **Job applications**.
 2. Enter a role title and organisation.
-3. Paste a position description of at least 20 characters, or upload a supported document.
+3. Select **Paste position description** or **Upload position document**. Paste the complete text,
+   or choose a PDF, DOCX, or TXT file.
 4. Confirm it contains only public professional information and select **Import and extract requirements**.
 5. Review the proposed requirement list. Select **Confirm requirements** only when it accurately represents the position description.
 6. Select **Map evidence & assess**. Expand each requirement to inspect its mapped asset count, coverage, confidence, and explanation.

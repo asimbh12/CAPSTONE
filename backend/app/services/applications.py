@@ -1,6 +1,9 @@
 import json
+import logging
 import re
+from html import escape
 from io import BytesIO
+from typing import Any
 from uuid import UUID
 
 from docx import Document as DocxDocument
@@ -32,6 +35,7 @@ from app.schemas.applications import (
     ApplicationRead,
     AssessmentRead,
     DraftRead,
+    ProviderApplicationDrafts,
     RequirementInput,
     RequirementRead,
     RequirementsProposal,
@@ -60,6 +64,7 @@ STOPWORDS = {
     "work",
     "must",
 }
+logger = logging.getLogger(__name__)
 
 
 def get_or_404(session: Session, application_id: UUID) -> JobApplication:
@@ -254,6 +259,101 @@ def map_and_assess(session: Session, item: JobApplication) -> ApplicationAssessm
     return assessment
 
 
+def _asset_context(assets: list[CareerAsset]) -> str:
+    return json.dumps(
+        [
+            {
+                "id": str(asset.id),
+                "title": asset.title,
+                "role": asset.role,
+                "category": asset.category,
+                "description": asset.description,
+                "impact": asset.impact_summary,
+                "start_date": str(asset.start_date) if asset.start_date else None,
+                "end_date": str(asset.end_date) if asset.end_date else None,
+                "tags": json.loads(asset.tags_json),
+                "keywords": json.loads(asset.keywords_json),
+            }
+            for asset in assets
+        ],
+        ensure_ascii=False,
+    )
+
+
+def _provider_drafts(
+    item: JobApplication,
+    profile: CareerProfile | None,
+    requirements: list[ApplicationRequirement],
+    assets: list[CareerAsset],
+) -> ProviderApplicationDrafts | None:
+    settings = get_settings()
+    if settings.ai_provider.casefold() != "gemini" or not settings.gemini_api_key:
+        return None
+    from google import genai
+
+    profile_context = {
+        "name": profile.name if profile else "",
+        "current_title": profile.current_title if profile else "",
+        "current_organisation": profile.current_organisation if profile else "",
+        "career_mission": profile.career_mission if profile else "",
+        "career_narrative": profile.career_narrative if profile else "",
+    }
+    requirement_context = [
+        {
+            "title": row.title,
+            "description": row.description,
+            "type": row.requirement_type,
+            "weight": row.weight,
+            "mapped_asset_ids": json.loads(row.asset_ids_json),
+        }
+        for row in requirements
+    ]
+    prompt = f"""
+Prepare a senior-executive application pack using only the supplied public career facts. Never
+invent responsibilities, outcomes, dates, qualifications, metrics, employers or awards. Record
+any important position requirement that lacks evidence in unsupported_claims instead of filling it.
+
+Produce four genuinely useful, distinct documents in clean Markdown:
+- cover_letter: 800-1200 words; role-specific persuasive narrative; 3-5 evidence-led themes;
+  explicit organisational contribution; confident close. Do not produce an evidence shopping list.
+- selection_criteria: every reviewed criterion under its own ## heading; detailed context, actions,
+  outcomes and relevance where supported; honest limitations; varied examples without repetition.
+- tailored_cv: executive profile, core capabilities, selected leadership impact, relevant career
+  experience, research/technology leadership, stakeholder/government/industry engagement, awards
+  and qualifications only when supported. Preserve useful verified metrics.
+- interview_notes: executive value proposition, 6-10 likely questions, evidence-backed talking
+  points, 4-6 STAR story outlines, risks with honest bridging language, panel questions and a
+  proposed 90-day contribution outline clearly distinguished from past achievements.
+
+Use ## and ### headings, normal paragraphs, and '- ' bullets. Do not use tables. Tailor every
+document to the role. The four outputs must not be repetitions of the same asset list.
+
+ROLE: {item.role_title}
+ORGANISATION: {item.organisation}
+POSITION DESCRIPTION:
+{item.position_description[:100_000]}
+
+PROFILE: {json.dumps(profile_context, ensure_ascii=False)}
+REVIEWED REQUIREMENTS: {json.dumps(requirement_context, ensure_ascii=False)}
+VERIFIED CAREER ASSETS: {_asset_context(assets)[:120_000]}
+"""
+    try:
+        client = genai.Client(api_key=settings.gemini_api_key)
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": ProviderApplicationDrafts,
+                "temperature": 0.2,
+            },
+        )
+        return ProviderApplicationDrafts.model_validate_json(response.text or "{}")
+    except Exception:
+        logger.exception("Gemini application drafting failed; using grounded local fallback")
+        return None
+
+
 def generate_drafts(session: Session, item: JobApplication) -> list[ApplicationDraft]:
     assessment = session.exec(
         select(ApplicationAssessment)
@@ -322,12 +422,80 @@ def generate_drafts(session: Session, item: JobApplication) -> list[ApplicationD
         )
         + "\n".join(f"• {gap}" for gap in json.loads(assessment.gaps_json)),
     }
+    all_assets = list(
+        session.exec(
+            select(CareerAsset)
+            .where(CareerAsset.status == "active")
+            .order_by(col(CareerAsset.start_date).desc(), col(CareerAsset.created_at).desc())
+        ).all()
+    )
+    provider_result = _provider_drafts(item, profile, requirements, all_assets)
+    provider = "grounded_template"
+    unsupported_claims: list[str] = []
+    if provider_result:
+        contents = provider_result.model_dump(exclude={"unsupported_claims"})
+        provider = "gemini"
+        unsupported_claims = provider_result.unsupported_claims
+    for existing in session.exec(
+        select(ApplicationDraft).where(ApplicationDraft.application_id == item.id)
+    ).all():
+        session.delete(existing)
     drafts = []
     for draft_type, content in contents.items():
-        draft = ApplicationDraft(application_id=item.id, draft_type=draft_type, content=content)
+        draft = ApplicationDraft(
+            application_id=item.id,
+            draft_type=draft_type,
+            content=content.strip(),
+            provider=provider,
+            unsupported_claims_json=json.dumps(unsupported_claims),
+        )
         session.add(draft)
         drafts.append(draft)
     return drafts
+
+
+def _markdown_text(value: str) -> str:
+    return value.replace("*", "").replace("__", "").replace("`", "").strip()
+
+
+def _add_docx_markdown(document: Any, content: str) -> None:
+    for line in content.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        if text.startswith("### "):
+            document.add_heading(_markdown_text(text[4:]), level=2)
+        elif text.startswith("## "):
+            document.add_heading(_markdown_text(text[3:]), level=1)
+        elif text.startswith("# "):
+            document.add_heading(_markdown_text(text[2:]), level=1)
+        elif text.startswith("- "):
+            document.add_paragraph(_markdown_text(text[2:]), style="List Bullet")
+        else:
+            document.add_paragraph(_markdown_text(text))
+
+
+def _add_pdf_markdown(
+    story: list[object],
+    content: str,
+    styles: dict[str, ParagraphStyle],
+) -> None:
+    for line in content.splitlines():
+        text = line.strip()
+        if not text:
+            story.append(Spacer(1, 4))
+        elif text.startswith("### "):
+            story.append(Paragraph(escape(_markdown_text(text[4:])), styles["heading3"]))
+        elif text.startswith(("## ", "# ")):
+            story.append(
+                Paragraph(escape(_markdown_text(text.lstrip("# "))), styles["heading2"])
+            )
+        elif text.startswith("- "):
+            story.append(
+                Paragraph(f"- {escape(_markdown_text(text[2:]))}", styles["bullet"])
+            )
+        else:
+            story.append(Paragraph(escape(_markdown_text(text)), styles["body"]))
 
 
 def export_pack(session: Session, item: JobApplication, format_name: str) -> bytes:
@@ -349,11 +517,24 @@ def export_pack(session: Session, item: JobApplication, format_name: str) -> byt
     if format_name == "docx":
         document = DocxDocument()
         section = document.sections[0]
-        section.top_margin = section.bottom_margin = Inches(0.7)
-        section.left_margin = section.right_margin = Inches(0.8)
+        section.top_margin = section.bottom_margin = Inches(1)
+        section.left_margin = section.right_margin = Inches(1)
         styles = document.styles
-        styles["Normal"].font.name = "Aptos"
-        styles["Normal"].font.size = Pt(10.5)
+        styles["Normal"].font.name = "Calibri"
+        styles["Normal"].font.size = Pt(11)
+        styles["Normal"].paragraph_format.space_after = Pt(8)
+        styles["Normal"].paragraph_format.line_spacing = 1.15
+        for style_name, size, before, after in (
+            ("Heading 1", 16, 18, 10),
+            ("Heading 2", 13, 12, 6),
+            ("Heading 3", 12, 8, 4),
+        ):
+            style = styles[style_name]
+            style.font.name = "Calibri"
+            style.font.size = Pt(size)
+            style.font.color.rgb = RGBColor(46, 116, 181)
+            style.paragraph_format.space_before = Pt(before)
+            style.paragraph_format.space_after = Pt(after)
         title = document.add_heading(item.role_title, 0)
         title.alignment = WD_ALIGN_PARAGRAPH.CENTER
         title.runs[0].font.color.rgb = RGBColor(31, 78, 121)
@@ -366,8 +547,7 @@ def export_pack(session: Session, item: JobApplication, format_name: str) -> byt
             if index:
                 document.add_page_break()  # type: ignore[no-untyped-call]
             document.add_heading(titles[draft_type], level=1)
-            for block in latest_by_type[draft_type].content.splitlines():
-                document.add_paragraph(block)
+            _add_docx_markdown(document, latest_by_type[draft_type].content)
         buffer = BytesIO()
         document.save(buffer)
         return buffer.getvalue()
@@ -382,8 +562,49 @@ def export_pack(session: Session, item: JobApplication, format_name: str) -> byt
         title=f"{item.role_title} application pack",
     )
     styles = getSampleStyleSheet()
+    export_styles = {
+        "heading2": ParagraphStyle(
+            "ApplicationHeading2",
+            parent=styles["Heading2"],
+            textColor=HexColor("#2E74B5"),
+            fontSize=13,
+            leading=16,
+            spaceBefore=12,
+            spaceAfter=6,
+        ),
+        "heading3": ParagraphStyle(
+            "ApplicationHeading3",
+            parent=styles["Heading3"],
+            textColor=HexColor("#1F4D78"),
+            fontSize=11.5,
+            leading=14,
+            spaceBefore=8,
+            spaceAfter=4,
+        ),
+        "body": ParagraphStyle(
+            "ApplicationBody",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=10.5,
+            leading=14,
+            spaceAfter=7,
+        ),
+        "bullet": ParagraphStyle(
+            "ApplicationBullet",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=10.5,
+            leading=14,
+            leftIndent=16,
+            firstLineIndent=-10,
+            spaceAfter=5,
+        ),
+    }
     heading = ParagraphStyle(
-        "CapstoneHeading", parent=styles["Heading1"], textColor=HexColor("#1F4E79"), spaceAfter=10
+        "CapstoneHeading",
+        parent=styles["Heading1"],
+        textColor=HexColor("#1F4E79"),
+        spaceAfter=10,
     )
     story = [
         Paragraph(item.role_title, styles["Title"]),
@@ -396,8 +617,6 @@ def export_pack(session: Session, item: JobApplication, format_name: str) -> byt
         if index:
             story.append(PageBreak())
         story.append(Paragraph(titles[draft_type], heading))
-        for block in latest_by_type[draft_type].content.splitlines():
-            story.append(Paragraph(block or "&nbsp;", styles["BodyText"]))
-            story.append(Spacer(1, 4))
+        _add_pdf_markdown(story, latest_by_type[draft_type].content, export_styles)
     pdf.build(story)
     return buffer.getvalue()

@@ -198,6 +198,7 @@ def goal_readiness(session: Session) -> list[GoalReadinessRead]:
                     overall_confidence=latest.overall_confidence,
                     trend=trend,
                     status=readiness_status,
+                    assessment_basis="direct_goal_evidence",
                     trajectory=direct_trajectory,
                     mapped_asset_ids=asset_ids,
                     mapped_asset_titles=[
@@ -263,6 +264,7 @@ def goal_readiness(session: Session) -> list[GoalReadinessRead]:
                 overall_confidence=confidence,
                 trend=trend,
                 status=readiness_status,
+                assessment_basis="linked_target_assessments",
                 trajectory=trajectory,
             )
         )

@@ -105,7 +105,11 @@ def post_theme(payload: ThemeCreate, session: SessionDependency) -> Theme:
 @router.get("/goals", response_model=list[GoalRead])
 def list_goals(session: SessionDependency) -> list[StrategicGoal]:
     return list(
-        session.exec(select(StrategicGoal).order_by(col(StrategicGoal.created_at).desc())).all()
+        session.exec(
+            select(StrategicGoal)
+            .where(StrategicGoal.status == "active")
+            .order_by(col(StrategicGoal.created_at).desc())
+        ).all()
     )
 
 
@@ -117,6 +121,24 @@ def post_goal(payload: GoalCreate, session: SessionDependency) -> StrategicGoal:
     session.commit()
     session.refresh(goal)
     return goal
+
+
+@router.delete("/goals/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_goal(goal_id: UUID, session: SessionDependency) -> None:
+    goal = session.get(StrategicGoal, goal_id)
+    if goal is None or goal.status != "active":
+        raise HTTPException(status_code=404, detail="Strategic goal not found")
+    goal.status = "archived"
+    goal.updated_at = datetime.now(UTC)
+    session.add(goal)
+    record_audit(
+        session,
+        entity_type="strategic_goal",
+        entity_id=goal.id,
+        action="removed",
+        details={"retained_for_history": True},
+    )
+    session.commit()
 
 
 @router.get("/organisations", response_model=list[OrganisationRead])
