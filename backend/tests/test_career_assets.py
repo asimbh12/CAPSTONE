@@ -111,6 +111,39 @@ def test_strategic_goal_can_be_removed_without_destroying_history(client: TestCl
     assert client.delete(f"/api/goals/{goal_id}").status_code == 404
 
 
+def test_achieved_strategic_goal_becomes_career_asset(client: TestClient) -> None:
+    created = client.post(
+        "/api/goals",
+        json={
+            "title": "Earn professional fellowship",
+            "description": "Recognition of sustained professional impact.",
+            "horizon": "medium_term",
+        },
+    )
+    goal_id = created.json()["id"]
+
+    achieved = client.post(
+        f"/api/goals/{goal_id}/achieve",
+        json={"achieved_date": "2026-07-24", "impact_summary": "Fellowship formally awarded."},
+    )
+
+    assert achieved.status_code == 200
+    asset = achieved.json()
+    assert asset["title"] == "Earn professional fellowship"
+    assert asset["category"] == "Strategic Achievement"
+    assert asset["subcategory"] == "Completed strategic goal"
+    assert asset["start_date"] == "2026-07-24"
+    assert asset["end_date"] == "2026-07-24"
+    assert asset["impact_summary"] == "Fellowship formally awarded."
+    assert asset["source_kind"] == "goal_completion"
+    assert "achievement" in asset["tags"]
+    assert all(goal["id"] != goal_id for goal in client.get("/api/goals").json())
+    assert client.post(
+        f"/api/goals/{goal_id}/achieve",
+        json={"achieved_date": "2026-07-24", "impact_summary": ""},
+    ).status_code == 404
+
+
 def test_timeline_duplicate_review_requires_confirmation_and_archives_rejected_record(
     client: TestClient,
 ) -> None:

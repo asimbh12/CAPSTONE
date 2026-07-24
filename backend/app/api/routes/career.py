@@ -28,6 +28,7 @@ from app.schemas.career import (
     DocumentRead,
     EvidenceCreate,
     EvidenceRead,
+    GoalAchievementCreate,
     GoalCreate,
     GoalRead,
     OrganisationCreate,
@@ -139,6 +140,50 @@ def delete_goal(goal_id: UUID, session: SessionDependency) -> None:
         details={"retained_for_history": True},
     )
     session.commit()
+
+
+@router.post("/goals/{goal_id}/achieve", response_model=AssetRead)
+def achieve_goal(
+    goal_id: UUID, payload: GoalAchievementCreate, session: SessionDependency
+) -> AssetRead:
+    goal = session.get(StrategicGoal, goal_id)
+    if goal is None or goal.status != "active":
+        raise HTTPException(status_code=404, detail="Strategic goal not found")
+
+    description = goal.description.strip()
+    impact_summary = payload.impact_summary.strip() or description
+    asset = create_asset(
+        session,
+        AssetCreate(
+            title=goal.title,
+            description=description or f"Achieved strategic goal: {goal.title}.",
+            category="Strategic Achievement",
+            subcategory="Completed strategic goal",
+            start_date=payload.achieved_date,
+            end_date=payload.achieved_date,
+            date_precision="day",
+            status=AssetStatus.ACTIVE,
+            impact_summary=impact_summary,
+            visibility="public",
+            tags=["strategic goal", "achievement", goal.horizon.replace("_", " ")],
+            keywords=["goal achieved", goal.title],
+        ),
+        source="goal_completion",
+    )
+    goal.status = "achieved"
+    goal.updated_at = datetime.now(UTC)
+    session.add(goal)
+    session.flush()
+    record_audit(
+        session,
+        entity_type="strategic_goal",
+        entity_id=goal.id,
+        action="achieved",
+        details={"career_asset_id": str(asset.id), "retained_for_history": True},
+    )
+    session.commit()
+    session.refresh(asset)
+    return build_asset_read(session, asset)
 
 
 @router.get("/organisations", response_model=list[OrganisationRead])

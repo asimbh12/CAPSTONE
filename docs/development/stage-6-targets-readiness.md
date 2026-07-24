@@ -36,3 +36,7 @@ linked target assessments, while retaining a single dated trajectory format.
 
 Goals can be removed from **Profile & goals** after explicit confirmation. Removal is a soft
 archive: the goal disappears from active planning while its historical assessments remain stored.
+
+Completed goals can instead be marked as achieved with a completion date and impact summary. This
+creates an active **Strategic Achievement** career asset, removes the goal from active planning and
+retains its readiness history.

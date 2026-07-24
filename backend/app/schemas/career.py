@@ -50,6 +50,11 @@ class GoalRead(GoalCreate):
     updated_at: datetime
 
 
+class GoalAchievementCreate(ApiModel):
+    achieved_date: date = Field(default_factory=date.today)
+    impact_summary: str = Field(default="", max_length=30_000)
+
+
 class OrganisationCreate(ApiModel):
     name: str = Field(min_length=1, max_length=250)
     organisation_type: str = Field(default="", max_length=100)
