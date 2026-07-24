@@ -1,64 +1,69 @@
+import ArrowForwardOutlined from '@mui/icons-material/ArrowForwardOutlined'
 import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import FolderCopyOutlined from '@mui/icons-material/FolderCopyOutlined'
 import FlagOutlined from '@mui/icons-material/FlagOutlined'
+import TaskAltOutlined from '@mui/icons-material/TaskAltOutlined'
 import TimelineOutlined from '@mui/icons-material/TimelineOutlined'
 import WorkOutlineOutlined from '@mui/icons-material/WorkOutlineOutlined'
-import { Alert, Box, Card, CardContent, CircularProgress, Grid, Stack, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Grid,
+  Stack,
+  Typography,
+} from '@mui/material'
 import { useEffect, useState } from 'react'
 
 import { careerApi } from '../api/client'
+import type { PageKey } from '../components/AppLayout'
 import { PageHeader } from '../components/PageHeader'
-import type { CareerAsset, Goal, OpportunitySummary, Profile, TimelineItem } from '../types/career'
+import type { Dashboard, DashboardAction } from '../types/career'
 
-interface OverviewState {
-  profile: Profile | null
-  assets: CareerAsset[]
-  goals: Goal[]
-  timeline: TimelineItem[]
-  opportunities: OpportunitySummary
+interface OverviewPageProps {
+  onNavigate: (page: PageKey) => void
 }
 
-export function OverviewPage() {
-  const [state, setState] = useState<OverviewState | null>(null)
+const urgencyColor: Record<DashboardAction['urgency'], 'error' | 'warning' | 'info' | 'default'> = {
+  critical: 'error',
+  high: 'warning',
+  medium: 'info',
+  low: 'default',
+}
+
+export function OverviewPage({ onNavigate }: OverviewPageProps) {
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    void Promise.all([
-      careerApi.getProfile(),
-      careerApi.listAssets(new URLSearchParams({ asset_status: 'active' })),
-      careerApi.listGoals(),
-      careerApi.timeline(),
-      careerApi.opportunitySummary(),
-    ])
-      .then(([profile, assets, goals, timeline, opportunities]) => setState({ profile, assets: assets.items, goals, timeline, opportunities }))
+    void careerApi.dashboard()
+      .then(setDashboard)
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Unable to load overview'))
   }, [])
 
   if (error) return <Alert severity="error">{error}</Alert>
-  if (!state) return <CircularProgress aria-label="Loading overview" />
+  if (!dashboard) return <CircularProgress aria-label="Loading overview" />
 
-  const categoryCount = new Set(state.assets.map((asset) => asset.category)).size
-  const latest = state.assets.slice(0, 4)
+  const metrics = dashboard.metrics
   return (
     <>
       <PageHeader
-        eyebrow="CAREER INTELLIGENCE FOUNDATION"
-        title={state.profile?.name ? `Welcome, ${state.profile.name}` : 'Build your career intelligence foundation'}
-        description="Capture public professional achievements once, connect them to evidence and strategy, and reuse them across every future opportunity."
+        eyebrow="CAREER INTELLIGENCE COMMAND CENTRE"
+        title={dashboard.profile_name ? `Welcome, ${dashboard.profile_name}` : 'Build your career intelligence foundation'}
+        description="See what is established, what needs attention, and the most valuable next actions across your career strategy."
       />
-      {!state.profile?.name && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          Begin with Profile & goals, then add your first career asset.
-        </Alert>
-      )}
       <Grid container spacing={3} mb={5}>
         {[
-          { label: 'Active assets', value: state.assets.length, icon: <FolderCopyOutlined /> },
-          { label: 'Asset categories', value: categoryCount, icon: <AutoAwesomeOutlined /> },
-          { label: 'Strategic goals', value: state.goals.length, icon: <FlagOutlined /> },
-          { label: 'Timeline events', value: state.timeline.length, icon: <TimelineOutlined /> },
-          { label: 'Open opportunities', value: state.opportunities.active, icon: <WorkOutlineOutlined /> },
-          { label: 'Closing soon', value: state.opportunities.closing_soon, icon: <WorkOutlineOutlined /> },
+          { label: 'Active assets', value: metrics.active_assets, icon: <FolderCopyOutlined /> },
+          { label: 'Asset categories', value: metrics.asset_categories, icon: <AutoAwesomeOutlined /> },
+          { label: 'Strategic goals', value: metrics.strategic_goals, icon: <FlagOutlined /> },
+          { label: 'Timeline events', value: metrics.timeline_events, icon: <TimelineOutlined /> },
+          { label: 'Open opportunities', value: metrics.open_opportunities, icon: <WorkOutlineOutlined /> },
+          { label: 'Closing soon', value: metrics.closing_soon, icon: <WorkOutlineOutlined /> },
         ].map((metric) => (
           <Grid key={metric.label} size={{ xs: 12, sm: 6, md: 4, lg: 2 }}>
             <Card>
@@ -73,12 +78,47 @@ export function OverviewPage() {
           </Grid>
         ))}
       </Grid>
+
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} mb={2}>
+        <Box>
+          <Typography variant="h4">Next best actions</Typography>
+          <Typography color="text.secondary">Deterministic recommendations based on incomplete or time-sensitive workflows.</Typography>
+        </Box>
+        {dashboard.actions.length === 0 && <Chip color="success" icon={<TaskAltOutlined />} label="Core workflows up to date" />}
+      </Stack>
+      {dashboard.actions.length === 0 ? (
+        <Alert severity="success" sx={{ mb: 5 }}>No urgent workflow gaps were detected. Continue maintaining evidence, targets, opportunities and regular backups.</Alert>
+      ) : (
+        <Grid container spacing={2} mb={5}>
+          {dashboard.actions.map((action, index) => (
+            <Grid key={action.key} size={{ xs: 12, md: 6 }}>
+              <Card variant={index === 0 ? 'elevation' : 'outlined'} sx={index === 0 ? { border: '1px solid', borderColor: 'primary.main' } : undefined}>
+                <CardContent>
+                  <Stack direction="row" justifyContent="space-between" gap={2} alignItems="flex-start">
+                    <Box>
+                      <Stack direction="row" gap={1} alignItems="center" mb={1}>
+                        <Chip size="small" color={urgencyColor[action.urgency]} label={action.urgency} />
+                        {action.count > 1 && <Chip size="small" variant="outlined" label={`${action.count} records`} />}
+                      </Stack>
+                      <Typography variant="h6">{action.title}</Typography>
+                      <Typography color="text.secondary" mt={0.5}>{action.description}</Typography>
+                    </Box>
+                    <Typography variant="h5" color="primary.main">#{index + 1}</Typography>
+                  </Stack>
+                  <Button sx={{ mt: 2 }} endIcon={<ArrowForwardOutlined />} onClick={() => onNavigate(action.page)}>Open workspace</Button>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
+
       <Typography variant="h4" mb={2}>Recent career assets</Typography>
-      {latest.length === 0 ? (
+      {dashboard.recent_assets.length === 0 ? (
         <Card><CardContent><Typography color="text.secondary">No career assets yet.</Typography></CardContent></Card>
       ) : (
         <Grid container spacing={2}>
-          {latest.map((asset) => (
+          {dashboard.recent_assets.map((asset) => (
             <Grid key={asset.id} size={{ xs: 12, md: 6 }}>
               <Card>
                 <CardContent>

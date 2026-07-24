@@ -6,8 +6,14 @@ from fastapi.responses import FileResponse, JSONResponse
 from sqlmodel import Session
 
 from app.db.session import get_session
-from app.schemas.career import BackupRead, ImportReport, ImportRequest
-from app.services.data_management import build_export, create_backup, import_data, resolve_backup
+from app.schemas.career import BackupRead, BackupVerification, ImportReport, ImportRequest
+from app.services.data_management import (
+    build_export,
+    create_backup,
+    import_data,
+    resolve_backup,
+    verify_backup,
+)
 
 router = APIRouter()
 SessionDependency = Annotated[Session, Depends(get_session)]
@@ -75,12 +81,21 @@ def import_json(payload: ImportRequest, session: SessionDependency) -> ImportRep
 def backup(session: SessionDependency) -> BackupRead:
     path = create_backup(session)
     stat = path.stat()
+    verification = verify_backup(path)
     return BackupRead(
         filename=path.name,
         byte_size=stat.st_size,
         created_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
         download_url=f"/api/data/backups/{path.name}",
+        verified=verification.valid,
+        file_count=verification.file_count,
+        database_integrity=verification.database_integrity,
     )
+
+
+@router.get("/backups/{filename}/verify", response_model=BackupVerification)
+def verify_existing_backup(filename: str) -> BackupVerification:
+    return verify_backup(resolve_backup(filename))
 
 
 @router.get("/backups/{filename}")

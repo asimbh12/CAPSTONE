@@ -241,3 +241,14 @@ class BackupRead(ApiModel):
     byte_size: int
     created_at: datetime
     download_url: str
+    verified: bool
+    file_count: int
+    database_integrity: str
+
+
+class BackupVerification(ApiModel):
+    filename: str
+    valid: bool
+    file_count: int
+    database_integrity: str
+    errors: list[str]

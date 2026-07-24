@@ -26,6 +26,7 @@ from app.models.career import (
 )
 from app.schemas.career import (
     AssetCreate,
+    BackupVerification,
     GoalCreate,
     ImportReport,
     OrganisationCreate,
@@ -226,6 +227,12 @@ def create_backup(session: Session) -> Path:
         manifest = {
             "backup_version": "1.0",
             "created_at": datetime.now(UTC).isoformat(),
+            "configuration": {
+                "environment": settings.environment,
+                "ai_provider": settings.ai_provider,
+                "gemini_model": settings.gemini_model,
+                "secrets_included": False,
+            },
             "files": [
                 {"path": archive_name, "sha256": _sha256(path), "byte_size": path.stat().st_size}
                 for path, archive_name in files
@@ -245,6 +252,70 @@ def create_backup(session: Session) -> Path:
     )
     session.commit()
     return destination
+
+
+def verify_backup(path: Path) -> BackupVerification:
+    errors: list[str] = []
+    file_count = 0
+    database_integrity = "not_checked"
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+            if "manifest.json" not in names:
+                errors.append("manifest.json is missing")
+                manifest: dict[str, Any] = {"files": []}
+            else:
+                manifest = json.loads(archive.read("manifest.json"))
+            entries = manifest.get("files", [])
+            if not isinstance(entries, list):
+                errors.append("Manifest files entry is invalid")
+                entries = []
+            file_count = len(entries)
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    errors.append("Manifest contains an invalid file entry")
+                    continue
+                archive_name = str(entry.get("path", ""))
+                parts = Path(archive_name).parts
+                if not archive_name or Path(archive_name).is_absolute() or ".." in parts:
+                    errors.append(f"Unsafe archive path: {archive_name}")
+                    continue
+                if archive_name not in names:
+                    errors.append(f"Backup file is missing: {archive_name}")
+                    continue
+                content = archive.read(archive_name)
+                digest = hashlib.sha256(content).hexdigest()
+                if digest != str(entry.get("sha256", "")):
+                    errors.append(f"Checksum mismatch: {archive_name}")
+                if len(content) != int(entry.get("byte_size", -1)):
+                    errors.append(f"Byte-size mismatch: {archive_name}")
+
+            database_name = "database/capstone.db"
+            if database_name not in names:
+                errors.append("SQLite database snapshot is missing")
+            else:
+                with tempfile.TemporaryDirectory() as temporary:
+                    snapshot = Path(temporary) / "capstone.db"
+                    snapshot.write_bytes(archive.read(database_name))
+                    connection = sqlite3.connect(snapshot)
+                    try:
+                        database_integrity = str(
+                            connection.execute("PRAGMA integrity_check").fetchone()[0]
+                        )
+                    finally:
+                        connection.close()
+                    if database_integrity != "ok":
+                        errors.append(f"SQLite integrity check returned: {database_integrity}")
+    except (OSError, zipfile.BadZipFile, json.JSONDecodeError, ValueError, KeyError) as exc:
+        errors.append(f"Backup verification failed: {exc}")
+
+    return BackupVerification(
+        filename=path.name,
+        valid=not errors and database_integrity == "ok",
+        file_count=file_count,
+        database_integrity=database_integrity,
+        errors=errors,
+    )
 
 
 def resolve_backup(filename: str) -> Path:

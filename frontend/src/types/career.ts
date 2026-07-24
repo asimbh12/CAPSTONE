@@ -114,6 +114,30 @@ export interface ImpactSummaryOptions {
   options: ImpactSummaryOption[]
 }
 
+export interface DashboardAction {
+  key: string
+  title: string
+  description: string
+  page: 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'applications' | 'targets' | 'profile' | 'data'
+  priority: number
+  count: number
+  urgency: 'critical' | 'high' | 'medium' | 'low'
+}
+
+export interface Dashboard {
+  profile_name: string
+  metrics: {
+    active_assets: number
+    asset_categories: number
+    strategic_goals: number
+    timeline_events: number
+    open_opportunities: number
+    closing_soon: number
+  }
+  actions: DashboardAction[]
+  recent_assets: CareerAsset[]
+}
+
 export interface TimelineItem {
   id: string
   title: string
@@ -157,6 +181,9 @@ export interface BackupRecord {
   byte_size: number
   created_at: string
   download_url: string
+  verified: boolean
+  file_count: number
+  database_integrity: string
 }
 
 export interface ProposedAsset {

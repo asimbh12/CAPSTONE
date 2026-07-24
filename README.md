@@ -42,6 +42,10 @@ review and confirm the extracted requirements, automatically map existing career
 the fit score and evidence gaps, then generate grounded cover-letter, selection-criteria,
 tailored-CV, and interview-note drafts. The application pack exports in both DOCX and PDF.
 
+Stage 8 hardening begins with an integrated command-centre dashboard that prioritises incomplete
+and time-sensitive workflows without changing data. Local backups are checksum-verified and their
+SQLite snapshots must pass an integrity check before success is reported.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -65,6 +69,9 @@ See the [Stage 6.5 interface guide](docs/development/stage-6-5-interface-consoli
 the responsive navigation and usability verification checklist.
 See the [Stage 7 testing guide](docs/development/stage-7-job-applications.md) for position
 description intake, evidence mapping, drafting, and export.
+See the [Stage 8 hardening guide](docs/development/stage-8-mvp-hardening.md) and
+[Windows operations guide](docs/development/windows-operations.md) for dashboard, backup,
+recovery and troubleshooting verification.
 
 ## Documentation
 

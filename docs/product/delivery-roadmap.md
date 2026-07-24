@@ -97,6 +97,11 @@ drafts, unsupported-claim reporting, audit events, and combined DOCX/PDF applica
 - Windows installation, operation, and troubleshooting guides.
 - Test with the owner's public professional seed dataset.
 
+Stage 8 in progress: the integrated dashboard now provides stable next-best-action recommendations;
+new backups receive manifest checksum and SQLite integrity verification; recovery tests open a
+clean restored database snapshot; and Windows startup, operation, restore and troubleshooting
+procedures are documented.
+
 ## Deferred roadmap
 
 After MVP validation: broader document templates, fellowships, awards, grants, CRM, thought leadership, discovery/monitoring, honours, analytics expansion, PostgreSQL, authentication, multi-user workspaces, cloud deployment, encryption and production monitoring.

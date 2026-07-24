@@ -13,12 +13,33 @@ describe('App', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders the Stage 3 overview and navigates to career assets', async () => {
+  it('renders the integrated overview and navigates to career assets', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((input: RequestInfo | URL) => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
         if (url.endsWith('/health')) return jsonResponse({ status: 'ok', service: 'api', version: '0.1.0', environment: 'test' })
+        if (url.endsWith('/dashboard')) return jsonResponse({
+          profile_name: '',
+          metrics: {
+            active_assets: 0,
+            asset_categories: 0,
+            strategic_goals: 0,
+            timeline_events: 0,
+            open_opportunities: 0,
+            closing_soon: 0,
+          },
+          actions: [{
+            key: 'import-career',
+            title: 'Import the first career evidence',
+            description: 'Upload a CV or public profile.',
+            page: 'onboarding',
+            priority: 95,
+            count: 1,
+            urgency: 'critical',
+          }],
+          recent_assets: [],
+        })
         if (url.includes('/assets?')) return jsonResponse({ items: [], total: 0 })
         if (url.endsWith('/profile')) return jsonResponse(null)
         if (url.endsWith('/opportunities/summary')) return jsonResponse({ active: 0, pursuing: 0, closing_soon: 0, top_opportunity: null })

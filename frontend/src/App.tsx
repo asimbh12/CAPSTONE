@@ -15,7 +15,7 @@ import { TargetsPage } from './pages/TargetsPage'
 export function App() {
   const [page, setPage] = useState<PageKey>('overview')
   const content = {
-    overview: <OverviewPage />,
+    overview: <OverviewPage onNavigate={setPage} />,
     onboarding: <OnboardingPage />,
     assets: <AssetsPage />,
     timeline: <TimelinePage />,

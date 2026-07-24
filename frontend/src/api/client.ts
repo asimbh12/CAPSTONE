@@ -3,6 +3,7 @@ import type {
   BackupRecord,
   CareerAsset,
   DocumentRecord,
+  Dashboard,
   Evidence,
   Goal,
   ImpactSummaryOptions,
@@ -63,6 +64,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const careerApi = {
+  dashboard: () => request<Dashboard>('/dashboard'),
   getProfile: () => request<Profile | null>('/profile'),
   saveProfile: (payload: ProfileInput) =>
     request<Profile>('/profile', { method: 'PUT', body: JSON.stringify(payload) }),
