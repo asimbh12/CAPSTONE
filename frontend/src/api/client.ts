@@ -5,6 +5,7 @@ import type {
   DocumentRecord,
   Evidence,
   Goal,
+  ImpactSummaryOptions,
   GoalReadiness,
   ImportReport,
   IngestionProposal,
@@ -81,6 +82,8 @@ export const careerApi = {
   listAssets: (params: URLSearchParams) =>
     request<{ items: CareerAsset[]; total: number }>(`/assets?${params.toString()}`),
   getAsset: (id: string) => request<CareerAsset>(`/assets/${id}`),
+  generateImpactSummaries: (id: string) =>
+    request<ImpactSummaryOptions>(`/assets/${id}/impact-summaries`, { method: 'POST' }),
   createAsset: (payload: AssetInput) =>
     request<CareerAsset>('/assets', { method: 'POST', body: JSON.stringify(payload) }),
   updateAsset: (id: string, payload: AssetInput) =>

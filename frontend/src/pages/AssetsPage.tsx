@@ -32,7 +32,7 @@ import { type ChangeEvent, type FormEvent, useCallback, useEffect, useState } fr
 import { careerApi, downloadUrl } from '../api/client'
 import { Feedback } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
-import type { AssetInput, CareerAsset, Organisation, Theme } from '../types/career'
+import type { AssetInput, CareerAsset, ImpactSummaryOption, Organisation, Theme } from '../types/career'
 
 const categories = [
   'Research Asset', 'Innovation Asset', 'Leadership Asset', 'Commercialisation Asset',
@@ -40,6 +40,7 @@ const categories = [
   'Relationship Asset', 'Board Asset', 'Committee Asset', 'Volunteer Asset',
   'Training Asset', 'Certification Asset', 'Teaching Asset', 'Defence Asset',
   'Public Health Asset', 'Industry Asset', 'Government Asset', 'Thought Leadership Asset',
+  'Strategic Achievement',
 ]
 
 const emptyAsset: AssetInput = {
@@ -81,6 +82,8 @@ function AssetDialog({ open, asset, themes, organisations, onClose, onSaved }: A
   const [form, setForm] = useState<AssetInput>(emptyAsset)
   const [terms, setTerms] = useState('')
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [impactOptions, setImpactOptions] = useState<ImpactSummaryOption[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -92,6 +95,7 @@ function AssetDialog({ open, asset, themes, organisations, onClose, onSaved }: A
         setForm(emptyAsset)
         setTerms('')
       }
+      setImpactOptions([])
       setError(null)
     }
   }, [asset, open])
@@ -117,6 +121,20 @@ function AssetDialog({ open, asset, themes, organisations, onClose, onSaved }: A
     }
   }
 
+  async function generateImpactOptions() {
+    if (!asset) return
+    setGenerating(true)
+    setError(null)
+    try {
+      const result = await careerApi.generateImpactSummaries(asset.id)
+      setImpactOptions(result.options)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to generate impact summaries')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <Box component="form" onSubmit={(event) => void submit(event)}>
@@ -131,7 +149,24 @@ function AssetDialog({ open, asset, themes, organisations, onClose, onSaved }: A
             <Grid size={{ xs: 12, md: 6 }}><TextField type="date" fullWidth label="Start date" slotProps={{ inputLabel: { shrink: true } }} value={form.start_date ?? ''} onChange={(event) => set('start_date', event.target.value || null)} /></Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField type="date" fullWidth label="End date" slotProps={{ inputLabel: { shrink: true } }} value={form.end_date ?? ''} onChange={(event) => set('end_date', event.target.value || null)} /></Grid>
             <Grid size={12}><TextField fullWidth multiline minRows={3} label="Description" value={form.description} onChange={(event) => set('description', event.target.value)} /></Grid>
-            <Grid size={12}><TextField fullWidth multiline minRows={2} label="Impact summary" helperText="Describe the outcome or value without adding unsupported claims." value={form.impact_summary} onChange={(event) => set('impact_summary', event.target.value)} /></Grid>
+            <Grid size={12}>
+              <TextField fullWidth multiline minRows={3} label="Impact summary" helperText="Describe the outcome or value without adding unsupported claims. AI suggestions never overwrite this field automatically." value={form.impact_summary} onChange={(event) => set('impact_summary', event.target.value)} />
+              {asset && <Button sx={{ mt: 1.5 }} variant="outlined" startIcon={generating ? <CircularProgress size={18} /> : <AutoAwesomeOutlined />} disabled={generating || saving} onClick={() => void generateImpactOptions()}>{generating ? 'Generating alternatives…' : impactOptions.length > 0 ? 'Generate different alternatives' : 'Generate AI impact summaries'}</Button>}
+            </Grid>
+            {impactOptions.length > 0 && <Grid size={12}>
+              <Alert severity="info" sx={{ mb: 1.5 }}>Compare the evidence-grounded alternatives below. Selecting one copies it into the impact-summary field; the career asset changes only when you select <strong>Save asset</strong>.</Alert>
+              <Stack spacing={1.5}>
+                {impactOptions.map((option) => <Card key={`${option.label}-${option.summary}`} variant="outlined" sx={{ borderColor: form.impact_summary === option.summary ? 'secondary.main' : 'divider' }}>
+                  <CardContent>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" gap={1}>
+                      <Box><Typography fontWeight={800}>{option.label}</Typography><Typography variant="body2" color="text.secondary">{option.emphasis}</Typography></Box>
+                      <Button size="small" variant={form.impact_summary === option.summary ? 'contained' : 'outlined'} color="secondary" onClick={() => set('impact_summary', option.summary)}>{form.impact_summary === option.summary ? 'Selected' : 'Use this summary'}</Button>
+                    </Stack>
+                    <Typography mt={1.5}>{option.summary}</Typography>
+                  </CardContent>
+                </Card>)}
+              </Stack>
+            </Grid>}
             <Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Role" value={form.role} onChange={(event) => set('role', event.target.value)} /></Grid>
             <Grid size={{ xs: 12, md: 6 }}><TextField select fullWidth label="Organisation" value={form.organisation_id ?? ''} onChange={(event) => set('organisation_id', event.target.value || null)}><MenuItem value="">None</MenuItem>{organisations.map((organisation) => <MenuItem key={organisation.id} value={organisation.id}>{organisation.name}</MenuItem>)}</TextField></Grid>
             <Grid size={12}><TextField fullWidth label="Tags" helperText="Comma-separated manual tags. AI-derived tags arrive in Stage 4." value={terms} onChange={(event) => setTerms(event.target.value)} /></Grid>

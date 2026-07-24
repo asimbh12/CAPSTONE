@@ -40,3 +40,7 @@ archive: the goal disappears from active planning while its historical assessmen
 Completed goals can instead be marked as achieved with a completion date and impact summary. This
 creates an active **Strategic Achievement** career asset, removes the goal from active planning and
 retains its readiness history.
+
+Existing career assets can generate four evidence-grounded Gemini impact-summary alternatives.
+Generation never changes the asset. The user compares the strategic, outcome, leadership and
+concise variants, applies one to the editor and explicitly saves the asset.

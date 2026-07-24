@@ -1,4 +1,9 @@
+import json
+
+import pytest
 from fastapi.testclient import TestClient
+
+from app.core.config import get_settings
 
 
 def test_profile_asset_evidence_and_timeline_workflow(client: TestClient) -> None:
@@ -142,6 +147,53 @@ def test_achieved_strategic_goal_becomes_career_asset(client: TestClient) -> Non
         f"/api/goals/{goal_id}/achieve",
         json={"achieved_date": "2026-07-24", "impact_summary": ""},
     ).status_code == 404
+
+
+def test_ai_impact_summary_options_are_grounded_and_do_not_overwrite_asset(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    asset = client.post(
+        "/api/assets",
+        json={
+            "title": "National research program leadership",
+            "description": "Led a public multidisciplinary research program.",
+            "category": "Leadership Asset",
+            "impact_summary": "Original user-authored summary.",
+        },
+    ).json()
+    options = [
+        {
+            "label": label,
+            "emphasis": f"{label} emphasis",
+            "summary": f"{label} summary grounded in multidisciplinary research leadership.",
+        }
+        for label in ["Strategic significance", "Demonstrated outcomes", "Leadership", "Executive"]
+    ]
+
+    class FakeResponse:
+        text = json.dumps({"provider": "gemini", "options": options})
+
+    class FakeModels:
+        @staticmethod
+        def generate_content(**kwargs: object) -> FakeResponse:
+            assert "Never invent numbers" in str(kwargs["contents"])
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            self.models = FakeModels()
+
+    monkeypatch.setenv("CAPSTONE_AI_PROVIDER", "gemini")
+    monkeypatch.setenv("CAPSTONE_GEMINI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("google.genai.Client", FakeClient)
+
+    response = client.post(f"/api/assets/{asset['id']}/impact-summaries")
+    assert response.status_code == 200
+    assert response.json()["provider"] == "gemini"
+    assert len(response.json()["options"]) == 4
+    unchanged = client.get(f"/api/assets/{asset['id']}").json()
+    assert unchanged["impact_summary"] == "Original user-authored summary."
 
 
 def test_timeline_duplicate_review_requires_confirmation_and_archives_rejected_record(

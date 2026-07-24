@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
+from app.core.config import get_settings
 from app.db.session import get_session
 from app.models.career import (
     AiHandlingPolicy,
@@ -31,6 +32,7 @@ from app.schemas.career import (
     GoalAchievementCreate,
     GoalCreate,
     GoalRead,
+    ImpactSummaryOptions,
     OrganisationCreate,
     OrganisationRead,
     PersonCreate,
@@ -253,6 +255,93 @@ def post_asset(payload: AssetCreate, session: SessionDependency) -> AssetRead:
 @router.get("/assets/{asset_id}", response_model=AssetRead)
 def get_asset(asset_id: UUID, session: SessionDependency) -> AssetRead:
     return build_asset_read(session, get_asset_or_404(session, asset_id))
+
+
+@router.post("/assets/{asset_id}/impact-summaries", response_model=ImpactSummaryOptions)
+def generate_impact_summaries(
+    asset_id: UUID, session: SessionDependency
+) -> ImpactSummaryOptions:
+    settings = get_settings()
+    if settings.ai_provider.lower() != "gemini" or not settings.gemini_api_key:
+        raise HTTPException(
+            status_code=409, detail="Gemini is not configured for impact-summary generation"
+        )
+    asset = get_asset_or_404(session, asset_id)
+    evidence = list(
+        session.exec(
+            select(EvidenceItem)
+            .where(EvidenceItem.asset_id == asset.id)
+            .order_by(col(EvidenceItem.created_at))
+        ).all()
+    )
+    organisation = (
+        session.get(Organisation, asset.organisation_id) if asset.organisation_id else None
+    )
+    context = {
+        "title": asset.title,
+        "category": asset.category,
+        "subcategory": asset.subcategory,
+        "description": asset.description,
+        "existing_impact_summary": asset.impact_summary,
+        "role": asset.role,
+        "organisation": organisation.name if organisation else "",
+        "start_date": str(asset.start_date or ""),
+        "end_date": str(asset.end_date or ""),
+        "tags": asset.tags_json,
+        "keywords": asset.keywords_json,
+        "evidence": [
+            {
+                "title": item.title,
+                "description": item.description,
+                "source_url": item.source_url,
+            }
+            for item in evidence
+        ],
+    }
+
+    from google import genai
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    try:
+        response = client.models.generate_content(
+            model=settings.gemini_model,
+            contents=(
+                "Create exactly four alternative impact summaries for this public career asset. "
+                "Each option must be compelling, specific, professionally credible and grounded "
+                "only in the supplied facts and evidence. Never invent numbers, outcomes, scale, "
+                "awards, causation, responsibilities or stakeholder endorsement. If quantitative "
+                "evidence is absent, communicate significance without fabricated metrics. Write "
+                "60-120 words per option in third person or neutral CV style, without first-person "
+                "pronouns. Make the four alternatives genuinely distinct: strategic significance, "
+                "demonstrated outcomes, leadership contribution, and concise executive profile. "
+                "Return a short label, a one-sentence description of the emphasis, and the "
+                "summary. "
+                "Do not include markdown.\n\n"
+                f"CAREER ASSET: {context}"
+            ),
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": ImpactSummaryOptions,
+                "temperature": 0.55,
+            },
+        )
+        result = ImpactSummaryOptions.model_validate_json(response.text or "{}")
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Gemini could not generate impact summaries: {exc}",
+        ) from exc
+    result.provider = "gemini"
+    record_audit(
+        session,
+        entity_type="career_asset",
+        entity_id=asset.id,
+        action="impact_summaries_generated",
+        source="gemini",
+        details={"option_count": len(result.options), "asset_unchanged": True},
+    )
+    session.commit()
+    return result
 
 
 @router.put("/assets/{asset_id}", response_model=AssetRead)

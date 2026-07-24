@@ -154,6 +154,17 @@ class AssetRead(AssetCreate):
     organisation: OrganisationRead | None = None
 
 
+class ImpactSummaryOption(ApiModel):
+    label: str = Field(min_length=1, max_length=100)
+    emphasis: str = Field(default="", max_length=500)
+    summary: str = Field(min_length=20, max_length=5_000)
+
+
+class ImpactSummaryOptions(ApiModel):
+    provider: str
+    options: list[ImpactSummaryOption] = Field(min_length=3, max_length=6)
+
+
 class AssetList(ApiModel):
     items: list[AssetRead]
     total: int

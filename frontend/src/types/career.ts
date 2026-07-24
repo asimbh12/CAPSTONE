@@ -103,6 +103,17 @@ export type AssetInput = Omit<
   | 'organisation'
 >
 
+export interface ImpactSummaryOption {
+  label: string
+  emphasis: string
+  summary: string
+}
+
+export interface ImpactSummaryOptions {
+  provider: string
+  options: ImpactSummaryOption[]
+}
+
 export interface TimelineItem {
   id: string
   title: string
