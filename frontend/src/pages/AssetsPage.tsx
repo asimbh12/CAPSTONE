@@ -35,6 +35,7 @@ import { PageHeader } from '../components/PageHeader'
 import type { AssetInput, CareerAsset, ImpactSummaryOption, Organisation, Theme } from '../types/career'
 
 const categories = [
+  'Experience',
   'Research Asset', 'Innovation Asset', 'Leadership Asset', 'Commercialisation Asset',
   'Award Asset', 'Funding Asset', 'Publication Asset', 'Patent Asset', 'Media Asset',
   'Relationship Asset', 'Board Asset', 'Committee Asset', 'Volunteer Asset',
@@ -75,7 +76,7 @@ interface AssetDialogProps {
   themes: Theme[]
   organisations: Organisation[]
   onClose: () => void
-  onSaved: (asset: CareerAsset) => void
+  onSaved: (asset: CareerAsset) => boolean | void
 }
 
 function AssetDialog({ open, asset, themes, organisations, onClose, onSaved }: AssetDialogProps) {
@@ -112,8 +113,8 @@ function AssetDialog({ open, asset, themes, organisations, onClose, onSaved }: A
       const saved = asset
         ? await careerApi.updateAsset(asset.id, payload)
         : await careerApi.createAsset(payload)
-      onSaved(saved)
-      onClose()
+      const continueReview = onSaved(saved)
+      if (!continueReview) onClose()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to save career asset')
     } finally {
@@ -278,6 +279,7 @@ function AssetDetailDialog({ asset, onClose, onEdit, onChanged }: DetailDialogPr
 
 export function AssetsPage() {
   const [assets, setAssets] = useState<CareerAsset[] | null>(null)
+  const [reviewAssets, setReviewAssets] = useState<CareerAsset[]>([])
   const [total, setTotal] = useState(0)
   const [themes, setThemes] = useState<Theme[]>([])
   const [organisations, setOrganisations] = useState<Organisation[]>([])
@@ -287,6 +289,7 @@ export function AssetsPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [selected, setSelected] = useState<CareerAsset | null>(null)
   const [editing, setEditing] = useState<CareerAsset | null>(null)
+  const [reviewingMissingImpact, setReviewingMissingImpact] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -296,8 +299,12 @@ export function AssetsPage() {
     if (category) params.set('category', category)
     if (status) params.set('asset_status', status)
     try {
-      const result = await careerApi.listAssets(params)
+      const [result, activeResult] = await Promise.all([
+        careerApi.listAssets(params),
+        careerApi.listAssets(new URLSearchParams({ asset_status: 'active' })),
+      ])
       setAssets(result.items); setTotal(result.total); setError(null)
+      setReviewAssets(activeResult.items)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to load career assets') }
   }, [category, search, status])
 
@@ -307,6 +314,39 @@ export function AssetsPage() {
   function changed(asset: CareerAsset) {
     setSelected(asset)
     setAssets((current) => current?.map((item) => item.id === asset.id ? asset : item) ?? null)
+    setReviewAssets((current) => current.map((item) => item.id === asset.id ? asset : item))
+  }
+
+  const missingExperienceImpact = reviewAssets.filter((asset) =>
+    asset.status === 'active'
+    && asset.category.toLowerCase().includes('experience')
+    && !asset.impact_summary.trim()
+  )
+
+  function startMissingImpactReview() {
+    const first = missingExperienceImpact[0]
+    if (!first) return
+    setReviewingMissingImpact(true)
+    setEditing(first)
+    setEditorOpen(true)
+  }
+
+  function savedAsset(asset: CareerAsset): boolean {
+    changed(asset)
+    void load()
+    if (reviewingMissingImpact) {
+      const next = missingExperienceImpact.find((item) => item.id !== asset.id)
+      if (next) {
+        setEditing(next)
+        setFeedback(`Impact summary saved. ${missingExperienceImpact.length - 1} experience records remain for review.`)
+        return true
+      }
+      setReviewingMissingImpact(false)
+      setFeedback('All experience records now have an impact summary.')
+      return false
+    }
+    setFeedback(editing ? 'Career asset updated.' : 'Career asset created.')
+    return false
   }
 
   return (
@@ -314,11 +354,12 @@ export function AssetsPage() {
       <PageHeader eyebrow="PERMANENT CAREER MEMORY" title="Career assets" description="Capture each achievement, role, output, and contribution as reusable, evidence-backed strategic capital." action={{ label: 'Add career asset', icon: <AddOutlined />, onClick: () => { setEditing(null); setEditorOpen(true) } }} />
       <Card sx={{ mb: 3 }}><CardContent><Grid container spacing={2}><Grid size={{ xs: 12, md: 6 }}><TextField fullWidth label="Search assets" value={search} onChange={(event) => setSearch(event.target.value)} slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment> } }} /></Grid><Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField select fullWidth label="Category" value={category} onChange={(event) => setCategory(event.target.value)}><MenuItem value="">All categories</MenuItem>{categories.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}</TextField></Grid><Grid size={{ xs: 12, sm: 6, md: 3 }}><TextField select fullWidth label="Status" value={status} onChange={(event) => setStatus(event.target.value)}><MenuItem value="">All statuses</MenuItem><MenuItem value="active">Active</MenuItem><MenuItem value="draft">Draft</MenuItem><MenuItem value="archived">Archived</MenuItem></TextField></Grid></Grid></CardContent></Card>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {missingExperienceImpact.length > 0 && <Alert severity="info" sx={{ mb: 2 }} action={<Button color="inherit" startIcon={<AutoAwesomeOutlined />} onClick={startMissingImpactReview}>Review with AI</Button>}><strong>{missingExperienceImpact.length} experience record{missingExperienceImpact.length === 1 ? '' : 's'}</strong> {missingExperienceImpact.length === 1 ? 'does' : 'do'} not yet have an impact summary. Review AI-generated alternatives one record at a time.</Alert>}
       <Typography color="text.secondary" mb={2}>{total} career asset{total === 1 ? '' : 's'}</Typography>
-      {!assets ? <CircularProgress aria-label="Loading career assets" /> : <Grid container spacing={2}>{assets.map((asset) => <Grid key={asset.id} size={{ xs: 12, md: 6, lg: 4 }}><Card sx={{ height: '100%' }}><CardActionArea onClick={() => setSelected(asset)} sx={{ height: '100%', alignItems: 'stretch' }}><CardContent><Stack direction="row" justifyContent="space-between" gap={1}><Typography color="secondary.main" fontWeight={800}>{asset.category}</Typography><Typography variant="caption">{asset.start_date ?? 'No date'}</Typography></Stack><Typography variant="h6" mt={1}>{asset.title}</Typography><Typography color="text.secondary" mt={1} sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{asset.impact_summary || asset.description || 'Add an impact summary.'}</Typography><Stack direction="row" gap={1} mt={2}><Chip size="small" label={`${asset.evidence.length} evidence`} /><Chip size="small" label={asset.source_kind} variant="outlined" /></Stack></CardContent></CardActionArea></Card></Grid>)}</Grid>}
+      {!assets ? <CircularProgress aria-label="Loading career assets" /> : <Grid container spacing={2}>{assets.map((asset) => <Grid key={asset.id} size={{ xs: 12, md: 6, lg: 4 }}><Card sx={{ height: '100%' }}><CardActionArea onClick={() => setSelected(asset)} sx={{ height: '100%', alignItems: 'stretch' }}><CardContent><Stack direction="row" justifyContent="space-between" gap={1}><Typography color="secondary.main" fontWeight={800}>{asset.category}</Typography><Typography variant="caption">{asset.start_date ?? 'No date'}</Typography></Stack><Typography variant="h6" mt={1}>{asset.title}</Typography><Typography color="text.secondary" mt={1} sx={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{asset.impact_summary || asset.description || 'Add an impact summary.'}</Typography><Stack direction="row" gap={1} mt={2} flexWrap="wrap"><Chip size="small" label={`${asset.evidence.length} evidence`} /><Chip size="small" label={asset.source_kind} variant="outlined" />{asset.category.toLowerCase().includes('experience') && !asset.impact_summary.trim() && <Chip size="small" color="secondary" label="Impact review needed" />}</Stack></CardContent></CardActionArea></Card></Grid>)}</Grid>}
       {assets?.length === 0 && <Alert severity="info">No assets match these filters. Add an asset or adjust the search.</Alert>}
-      <AssetDialog open={editorOpen} asset={editing} themes={themes} organisations={organisations} onClose={() => setEditorOpen(false)} onSaved={(asset) => { setFeedback(editing ? 'Career asset updated.' : 'Career asset created.'); changed(asset); void load() }} />
-      <AssetDetailDialog asset={selected} onClose={() => setSelected(null)} onEdit={() => { setEditing(selected); setEditorOpen(true) }} onChanged={(asset) => { changed(asset); void load() }} />
+      <AssetDialog open={editorOpen} asset={editing} themes={themes} organisations={organisations} onClose={() => { setEditorOpen(false); setReviewingMissingImpact(false) }} onSaved={savedAsset} />
+      <AssetDetailDialog asset={selected} onClose={() => setSelected(null)} onEdit={() => { setReviewingMissingImpact(false); setEditing(selected); setEditorOpen(true) }} onChanged={(asset) => { changed(asset); void load() }} />
       <Feedback message={feedback} onClose={() => setFeedback(null)} />
     </>
   )

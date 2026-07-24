@@ -44,3 +44,7 @@ retains its readiness history.
 Existing career assets can generate four evidence-grounded Gemini impact-summary alternatives.
 Generation never changes the asset. The user compares the strategic, outcome, leadership and
 concise variants, applies one to the editor and explicitly saves the asset.
+
+The Career assets page identifies active experience records with no impact summary and offers a
+guided **Review with AI** queue. Saving a selected summary advances to the next incomplete
+experience; cancelling stops the queue without changing the current record.
