@@ -47,8 +47,9 @@ and time-sensitive workflows without changing data. Local backups are checksum-v
 SQLite snapshots must pass an integrity check before success is reported.
 
 Stage 9 adds a **Document studio** for professional biographies, executive profiles and
-LinkedIn About sections grounded in active career assets. Drafts are editable, auditable and
-exportable as standalone DOCX and PDF documents.
+LinkedIn About sections, academic/executive/board/grant CVs and capability statements grounded in
+user-selected active career assets. Drafts are editable, auditable and exportable as standalone
+DOCX and PDF documents.
 
 ## Run locally
 

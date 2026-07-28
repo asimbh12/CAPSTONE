@@ -91,3 +91,45 @@ def test_generation_requires_active_evidence(client: TestClient) -> None:
         },
     )
     assert response.status_code == 409
+
+
+def test_cv_uses_only_explicitly_selected_assets(client: TestClient) -> None:
+    asset_id = seed_career(client)
+    second = client.post(
+        "/api/assets",
+        json={
+            "title": "Unselected award",
+            "description": "This asset should not appear in the selected draft.",
+            "category": "Award Asset",
+            "subcategory": "",
+            "start_date": "2024-01-01",
+            "end_date": None,
+            "date_precision": "day",
+            "status": "active",
+            "impact_summary": "Received an unrelated award.",
+            "organisation_id": None,
+            "role": "",
+            "visibility": "public",
+            "tags": [],
+            "keywords": [],
+            "theme_ids": [],
+        },
+    )
+    assert second.status_code == 201
+
+    response = client.post(
+        "/api/career-documents",
+        json={
+            "document_type": "executive_cv",
+            "title": "Selected executive CV",
+            "audience": "Executive search panel",
+            "purpose": "Present leadership evidence.",
+            "tone": "executive",
+            "asset_ids": [asset_id],
+        },
+    )
+    assert response.status_code == 201
+    document = response.json()
+    assert document["asset_ids"] == [asset_id]
+    assert "Led national research program" in document["content"]
+    assert "Unselected award" not in document["content"]

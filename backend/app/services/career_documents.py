@@ -17,7 +17,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer  # type: ign
 from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
-from app.models.career import CareerAsset, CareerDocument, CareerProfile
+from app.models.career import AiOperation, CareerAsset, CareerDocument, CareerProfile
 from app.schemas.career_documents import (
     CareerDocumentGenerate,
     CareerDocumentRead,
@@ -31,6 +31,51 @@ TYPE_LABELS = {
     "professional_biography": "Professional biography",
     "executive_profile": "Executive profile",
     "linkedin_about": "LinkedIn About",
+    "academic_cv": "Academic CV",
+    "executive_cv": "Executive CV",
+    "board_cv": "Board CV",
+    "grant_cv": "Two-page grant CV",
+    "capability_statement": "Capability statement",
+}
+
+TYPE_GUIDANCE = {
+    "professional_biography": (
+        "Write 350-500 words with a strong opening identity, career focus, selected leadership "
+        "and impact, and a concise closing."
+    ),
+    "executive_profile": (
+        "Write 600-900 words with an executive value proposition, leadership scope, selected "
+        "impact themes and future-facing contribution."
+    ),
+    "linkedin_about": (
+        "Write 250-400 words in first person with a distinctive opening, accessible impact "
+        "narrative, focus areas and a professional closing. Avoid generic buzzwords."
+    ),
+    "academic_cv": (
+        "Create a detailed academic CV with profile, appointments, research leadership, grants, "
+        "publications, supervision, teaching, service, awards and qualifications only where "
+        "supported. Use reverse chronology and preserve verified dates and metrics."
+    ),
+    "executive_cv": (
+        "Create a focused executive CV with executive profile, core capabilities, leadership "
+        "experience, enterprise impact, stakeholder engagement, governance, recognition and "
+        "qualifications only where supported. Prioritise outcomes over duties."
+    ),
+    "board_cv": (
+        "Create a board CV with governance proposition, board and committee experience, "
+        "strategy, risk, stakeholder, financial or organisational oversight evidence, sector "
+        "expertise and recognition. Do not imply director duties not present in evidence."
+    ),
+    "grant_cv": (
+        "Create a concise two-page grant CV with research profile, selected track record, "
+        "funding and translation, leadership, team capability, selected outputs and contribution "
+        "to the proposed purpose. Be selective and avoid unsupported totals."
+    ),
+    "capability_statement": (
+        "Create a persuasive capability statement with purpose, distinctive capabilities, "
+        "evidence of delivery, leadership and partnerships, selected proof points and a concise "
+        "value proposition tailored to the audience."
+    ),
 }
 
 
@@ -68,9 +113,7 @@ def _fallback(
         if profile
         else ""
     )
-    evidence = [
-        asset.impact_summary or asset.description or asset.title for asset in assets[:8]
-    ]
+    evidence = [asset.impact_summary or asset.description or asset.title for asset in assets]
     if payload.document_type == "linkedin_about":
         return "\n\n".join(
             part
@@ -83,6 +126,36 @@ def _fallback(
             if part
         )
     heading = TYPE_LABELS[payload.document_type]
+    if payload.document_type in {
+        "academic_cv",
+        "executive_cv",
+        "board_cv",
+        "grant_cv",
+        "capability_statement",
+    }:
+        grouped: dict[str, list[str]] = {}
+        for asset in assets:
+            date_label = str(asset.start_date.year) if asset.start_date else "Date not recorded"
+            detail = asset.impact_summary or asset.description or asset.title
+            grouped.setdefault(asset.category, []).append(
+                f"- **{asset.title}** ({date_label}) — {detail}"
+            )
+        sections = "\n\n".join(
+            f"## {category}\n" + "\n".join(entries)
+            for category, entries in grouped.items()
+        )
+        return "\n\n".join(
+            part
+            for part in (
+                f"# {heading}",
+                f"## Professional profile\n{name}{f' — {current}' if current else ''}. "
+                f"{narrative}".strip(),
+                f"## Purpose\n{payload.purpose}" if payload.purpose else "",
+                sections,
+                "## Evidence note\nThis draft contains only selected active CAPSTONE assets.",
+            )
+            if part
+        )
     return "\n\n".join(
         part
         for part in (
@@ -99,10 +172,10 @@ def _provider_content(
     payload: CareerDocumentGenerate,
     profile: CareerProfile | None,
     assets: list[CareerAsset],
-) -> ProviderCareerDocument | None:
+) -> tuple[ProviderCareerDocument | None, str]:
     settings = get_settings()
     if settings.ai_provider.casefold() != "gemini" or not settings.gemini_api_key:
-        return None
+        return None, ""
     profile_data = profile.model_dump(mode="json") if profile else {}
     audience = payload.audience or "general professional audience"
     purpose = payload.purpose or "reusable career communication"
@@ -114,13 +187,16 @@ Markdown headings, paragraphs and bullets; no tables. Audience: {audience}. Purp
 Tone: {payload.tone}. Make the document specific, cohesive and impact-led rather than an asset
 list.
 
+FORMAT AND DEPTH: {TYPE_GUIDANCE[payload.document_type]}
+
 PROFILE: {json.dumps(profile_data, ensure_ascii=False)}
 VERIFIED ASSETS: {_asset_context(assets)[:120_000]}
 """
     try:
         from google import genai
 
-        response = genai.Client(api_key=settings.gemini_api_key).models.generate_content(
+        client = genai.Client(api_key=settings.gemini_api_key)
+        response = client.models.generate_content(
             model=settings.gemini_model,
             contents=prompt,
             config={
@@ -129,10 +205,13 @@ VERIFIED ASSETS: {_asset_context(assets)[:120_000]}
                 "temperature": 0.25,
             },
         )
-        return ProviderCareerDocument.model_validate_json(response.text or "{}")
-    except Exception:
+        return ProviderCareerDocument.model_validate_json(response.text or "{}"), ""
+    except Exception as exc:
         logger.exception("Gemini career-document generation failed; using local fallback")
-        return None
+        message = f"{type(exc).__name__}: {exc}"
+        if settings.gemini_api_key:
+            message = message.replace(settings.gemini_api_key, "[redacted]")
+        return None, message[:2_000]
 
 
 def generate(session: Session, payload: CareerDocumentGenerate) -> CareerDocument:
@@ -150,7 +229,7 @@ def generate(session: Session, payload: CareerDocumentGenerate) -> CareerDocumen
             status_code=409,
             detail="Add at least one active career asset before generating a document",
         )
-    provider_result = _provider_content(payload, profile, assets)
+    provider_result, provider_error = _provider_content(payload, profile, assets)
     item = CareerDocument(
         document_type=payload.document_type,
         title=payload.title,
@@ -165,6 +244,21 @@ def generate(session: Session, payload: CareerDocumentGenerate) -> CareerDocumen
         ),
     )
     session.add(item)
+    settings = get_settings()
+    if settings.ai_provider.casefold() == "gemini" and settings.gemini_api_key:
+        session.add(
+            AiOperation(
+                operation="generate_career_document",
+                entity_type="career_document",
+                entity_id=str(item.id),
+                provider="gemini",
+                model=settings.gemini_model,
+                status="succeeded" if provider_result else "failed",
+                input_characters=len(_asset_context(assets)) + len(payload.purpose),
+                output_characters=len(item.content),
+                error_message=provider_error,
+            )
+        )
     return item
 
 

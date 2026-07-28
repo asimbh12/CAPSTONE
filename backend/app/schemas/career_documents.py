@@ -6,7 +6,10 @@ from pydantic import BaseModel, Field
 
 class CareerDocumentGenerate(BaseModel):
     document_type: str = Field(
-        pattern="^(professional_biography|executive_profile|linkedin_about)$"
+        pattern=(
+            "^(professional_biography|executive_profile|linkedin_about|academic_cv|"
+            "executive_cv|board_cv|grant_cv|capability_statement)$"
+        )
     )
     title: str = Field(min_length=1, max_length=300)
     audience: str = Field(default="", max_length=300)

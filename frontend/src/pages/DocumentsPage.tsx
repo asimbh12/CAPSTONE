@@ -2,24 +2,33 @@ import AutoAwesomeOutlined from '@mui/icons-material/AutoAwesomeOutlined'
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined'
 import SaveOutlined from '@mui/icons-material/SaveOutlined'
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, FormControl,
-  Grid, InputLabel, MenuItem, Select, Stack, TextField, Typography,
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, CardContent,
+  Checkbox, Chip, CircularProgress, FormControl, FormControlLabel, Grid, InputLabel,
+  MenuItem, Select, Stack, TextField, Typography,
 } from '@mui/material'
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { careerApi, downloadUrl } from '../api/client'
 import { Feedback } from '../components/Feedback'
 import { PageHeader } from '../components/PageHeader'
-import type { CareerDocument } from '../types/career'
+import type { CareerAsset, CareerDocument } from '../types/career'
 
 const labels: Record<CareerDocument['document_type'], string> = {
   professional_biography: 'Professional biography',
   executive_profile: 'Executive profile',
   linkedin_about: 'LinkedIn About',
+  academic_cv: 'Academic CV',
+  executive_cv: 'Executive CV',
+  board_cv: 'Board CV',
+  grant_cv: 'Two-page grant CV',
+  capability_statement: 'Capability statement',
 }
 
 export function DocumentsPage() {
   const [items, setItems] = useState<CareerDocument[] | null>(null)
+  const [assets, setAssets] = useState<CareerAsset[]>([])
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [documentType, setDocumentType] =
     useState<CareerDocument['document_type']>('professional_biography')
@@ -39,9 +48,17 @@ export function DocumentsPage() {
 
   const load = useCallback(async () => {
     try {
-      const response = await careerApi.listCareerDocuments()
-      setItems(response.items)
-      setSelectedId(current => current ?? response.items[0]?.id ?? null)
+      const parameters = new URLSearchParams({ asset_status: 'active' })
+      const [documentResponse, assetResponse] = await Promise.all([
+        careerApi.listCareerDocuments(),
+        careerApi.listAssets(parameters),
+      ])
+      setItems(documentResponse.items)
+      setAssets(assetResponse.items)
+      setSelectedAssetIds(current => current.length
+        ? current.filter(id => assetResponse.items.some(asset => asset.id === id))
+        : assetResponse.items.map(asset => asset.id))
+      setSelectedId(current => current ?? documentResponse.items[0]?.id ?? null)
       setError(null)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to load career documents')
@@ -62,7 +79,12 @@ export function DocumentsPage() {
     setError(null)
     try {
       const created = await careerApi.generateCareerDocument({
-        document_type: documentType, title, audience, purpose, tone, asset_ids: [],
+        document_type: documentType,
+        title,
+        audience,
+        purpose,
+        tone,
+        asset_ids: selectedAssetIds,
       })
       await load()
       setSelectedId(created.id)
@@ -126,7 +148,39 @@ export function DocumentsPage() {
           </FormControl></Grid>
           <Grid size={{ xs: 12, md: 5 }}><TextField fullWidth label="Audience" placeholder="Board, conference, university website…" value={audience} onChange={event => setAudience(event.target.value)} /></Grid>
           <Grid size={{ xs: 12, md: 7 }}><TextField fullWidth label="Purpose and emphasis" placeholder="What should this document help achieve?" value={purpose} onChange={event => setPurpose(event.target.value)} /></Grid>
-          <Grid size={12}><Button type="submit" variant="contained" disabled={busy || !title.trim()} startIcon={busy ? <CircularProgress size={18} /> : <AutoAwesomeOutlined />}>Generate grounded draft</Button></Grid>
+          <Grid size={12}><Accordion variant="outlined">
+            <AccordionSummary expandIcon={<ExpandMoreOutlined />}>
+              <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
+                <Typography fontWeight={800}>Source career assets</Typography>
+                <Chip size="small" label={`${selectedAssetIds.length} of ${assets.length} selected`} />
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack direction="row" gap={1} mb={1}>
+                <Button size="small" onClick={() => setSelectedAssetIds(assets.map(asset => asset.id))}>Select all</Button>
+                <Button size="small" onClick={() => setSelectedAssetIds([])}>Clear</Button>
+              </Stack>
+              <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
+                {assets.map(asset => <FormControlLabel
+                  key={asset.id}
+                  control={<Checkbox
+                    checked={selectedAssetIds.includes(asset.id)}
+                    onChange={event => setSelectedAssetIds(current => event.target.checked
+                      ? [...current, asset.id]
+                      : current.filter(id => id !== asset.id))}
+                  />}
+                  label={<Box>
+                    <Typography fontWeight={700}>{asset.title}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {asset.category}{asset.start_date ? ` · ${asset.start_date.slice(0, 4)}` : ''}
+                    </Typography>
+                  </Box>}
+                  sx={{ display: 'flex', alignItems: 'flex-start', mb: 0.5 }}
+                />)}
+              </Box>
+            </AccordionDetails>
+          </Accordion></Grid>
+          <Grid size={12}><Button type="submit" variant="contained" disabled={busy || !title.trim() || selectedAssetIds.length === 0} startIcon={busy ? <CircularProgress size={18} /> : <AutoAwesomeOutlined />}>Generate grounded draft</Button></Grid>
         </Grid>
       </Box>
     </CardContent></Card>

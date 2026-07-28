@@ -8,9 +8,16 @@ communications independently of a job application.
 - Professional biography
 - Executive profile
 - LinkedIn About section
+- Academic CV
+- Executive CV
+- Board CV
+- Two-page grant CV
+- Capability statement
 
 The user selects the intended audience, purpose and tone. Generation uses the career profile and
-active career assets, records the exact asset identifiers used, and never updates those sources.
+user-selected active career assets, records the exact asset identifiers used, and never updates
+those sources. The selector begins with all active assets selected, but the user can deliberately
+exclude irrelevant evidence before generating a targeted document.
 Gemini is used when configured; otherwise a deterministic grounded draft keeps the workflow
 testable offline. Requests that lack verified support are returned as evidence limitations instead
 of being invented.
@@ -22,6 +29,7 @@ DOCX or PDF. Saving an edited draft creates an audit event without overwriting i
 
 1. Open **Document studio**.
 2. Choose a document type, audience, purpose and tone.
-3. Generate the draft and confirm that its source-asset count is shown.
-4. Review and edit the document, then save it.
-5. Download both DOCX and PDF and check their layout.
+3. Expand **Source career assets** and remove irrelevant evidence.
+4. Generate the draft and confirm that its source-asset count is shown.
+5. Review and edit the document, then save it.
+6. Download both DOCX and PDF and check their layout.

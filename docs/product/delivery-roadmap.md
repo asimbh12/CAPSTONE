@@ -114,6 +114,9 @@ Stage 9 first slice delivered: professional biographies, executive profiles and 
 sections are generated from active career assets, stored locally, editable, auditable and
 exportable in DOCX and PDF.
 
+Stage 9 second slice delivered: academic, executive, board and two-page grant CVs plus capability
+statements use template-specific generation guidance and explicit user selection of source assets.
+
 ## Deferred roadmap
 
 After MVP validation: broader document templates, fellowships, awards, grants, CRM, thought leadership, discovery/monitoring, honours, analytics expansion, PostgreSQL, authentication, multi-user workspaces, cloud deployment, encryption and production monitoring.

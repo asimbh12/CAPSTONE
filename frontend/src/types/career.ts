@@ -380,7 +380,8 @@ export interface JobApplication {
 
 export interface CareerDocument {
   id: string
-  document_type: 'professional_biography' | 'executive_profile' | 'linkedin_about'
+  document_type: 'professional_biography' | 'executive_profile' | 'linkedin_about' |
+    'academic_cv' | 'executive_cv' | 'board_cv' | 'grant_cv' | 'capability_statement'
   title: string
   audience: string
   purpose: string
