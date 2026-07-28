@@ -186,6 +186,21 @@ export interface BackupRecord {
   database_integrity: string
 }
 
+export interface SystemReadiness {
+  status: 'ready' | 'attention' | 'blocked'
+  checked_at: string
+  passed: number
+  warnings: number
+  failures: number
+  checks: Array<{
+    key: string
+    label: string
+    status: 'pass' | 'warning' | 'fail'
+    message: string
+    details: string[]
+  }>
+}
+
 export interface ProposedAsset {
   title: string
   description: string

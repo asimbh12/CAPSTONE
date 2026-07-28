@@ -36,6 +36,23 @@ it independently and confirms that saved profile data can be read.
 
 ## Stage 8 verification
 
+## MVP readiness diagnostics
+
+**Data safety → MVP readiness** runs an explicit local release-gate assessment. It reports:
+
+- SQLite quick-check integrity;
+- current Alembic migration revision versus the application head;
+- data-directory writability;
+- existence, safe paths and SHA-256 checksums for stored original documents;
+- valid AI handling policies and any external AI operation associated with a restricted ingestion;
+- latest backup age and checksum/database verification;
+- failed ingestion workflows that remain available for recovery;
+- audit-history availability.
+
+Failures mark the local MVP as **blocked**. Non-destructive operational gaps such as a missing
+backup or a failed ingestion awaiting review produce **attention** warnings. The check reads and
+verifies data but never repairs, deletes or overwrites records.
+
 Run the backend quality and test suite:
 
 ```powershell

@@ -23,6 +23,7 @@ import type {
   ProfileInput,
   PublicProfileSource,
   Theme,
+  SystemReadiness,
   TimelineItem,
   TimelineDuplicateGroup,
   TimelineDuplicateResolutionResult,
@@ -64,6 +65,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const careerApi = {
+  systemReadiness: () => request<SystemReadiness>('/system/readiness'),
   dashboard: () => request<Dashboard>('/dashboard'),
   getProfile: () => request<Profile | null>('/profile'),
   saveProfile: (payload: ProfileInput) =>

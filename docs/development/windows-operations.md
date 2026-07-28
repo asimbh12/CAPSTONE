@@ -51,6 +51,16 @@ docker compose logs --tail 200 web
 The `data` directory contains the SQLite database and locally stored documents. Do not manually
 edit these files while CAPSTONE is running.
 
+## Run MVP readiness checks
+
+Open **Data safety** and select **Run readiness checks**. A release-ready instance must have no
+failed checks. Warnings are operational follow-ups and should be reviewed before relying on the
+instance for a time-sensitive application.
+
+Do not attempt manual database repair when a migration, SQLite, document-checksum or AI-policy
+check fails. Create a backup if possible, preserve the current `data` directory, and use the
+check details plus API logs to diagnose the specific failure.
+
 ## Create and verify a backup
 
 Open **Data safety**, select **Create and verify backup**, and wait for:

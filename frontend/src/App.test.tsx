@@ -40,6 +40,20 @@ describe('App', () => {
           }],
           recent_assets: [],
         })
+        if (url.endsWith('/system/readiness')) return jsonResponse({
+          status: 'attention',
+          checked_at: '2026-07-28T00:00:00Z',
+          passed: 7,
+          warnings: 1,
+          failures: 0,
+          checks: [{
+            key: 'recoverable_backup',
+            label: 'Recoverable backup',
+            status: 'warning',
+            message: 'No local backup is available.',
+            details: [],
+          }],
+        })
         if (url.includes('/assets?')) return jsonResponse({ items: [], total: 0 })
         if (url.endsWith('/profile')) return jsonResponse(null)
         if (url.endsWith('/opportunities/summary')) return jsonResponse({ active: 0, pursuing: 0, closing_soon: 0, top_opportunity: null })
@@ -57,6 +71,12 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Career assets' }))
     expect(await screen.findByRole('heading', { name: 'Career assets' })).toBeInTheDocument()
     expect(await screen.findByText(/No assets match these filters/i)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Data safety' }))
+    expect(await screen.findByRole('heading', { name: 'Data safety' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Run readiness checks' }))
+    expect(await screen.findByText('MVP checks need attention')).toBeInTheDocument()
+    expect(await screen.findByText('No local backup is available.')).toBeInTheDocument()
   })
 
   it('shows a useful status when the API is unavailable', async () => {

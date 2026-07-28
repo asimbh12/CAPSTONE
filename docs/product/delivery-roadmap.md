@@ -100,7 +100,8 @@ drafts, unsupported-claim reporting, audit events, and combined DOCX/PDF applica
 Stage 8 in progress: the integrated dashboard now provides stable next-best-action recommendations;
 new backups receive manifest checksum and SQLite integrity verification; recovery tests open a
 clean restored database snapshot; and Windows startup, operation, restore and troubleshooting
-procedures are documented.
+procedures are documented. The Data safety workspace now exposes migration, database, storage,
+document-checksum, AI-policy, backup, failed-workflow and audit-history release-gate checks.
 
 ## Deferred roadmap
 

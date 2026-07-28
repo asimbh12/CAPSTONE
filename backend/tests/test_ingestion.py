@@ -1,8 +1,10 @@
 from io import BytesIO
 
+import pytest
 from docx import Document as DocxDocument
 from fastapi.testclient import TestClient
 
+from app.core.config import get_settings
 from app.schemas.ingestion import (
     CareerExtractionProposal,
     ProposedAsset,
@@ -161,6 +163,28 @@ def test_document_ingestion_reviews_and_populates_without_overwriting_user_facts
     assert profile["career_mission"] == "User-authored mission"
     assert profile["current_title"] == "Proposed director"
     assert client.get("/api/timeline").json()[0]["start_date"] == "2020-01-01"
+
+
+def test_local_only_ingestion_never_calls_configured_gemini(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class ForbiddenClient:
+        def __init__(self, **_: object) -> None:
+            raise AssertionError("Gemini must not be called for local-only content")
+
+    monkeypatch.setenv("CAPSTONE_AI_PROVIDER", "gemini")
+    monkeypatch.setenv("CAPSTONE_GEMINI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("google.genai.Client", ForbiddenClient)
+
+    response = client.post(
+        "/api/ingestions/documents",
+        files={"file": ("local.txt", b"Public Director 2024 - present", "text/plain")},
+        data={"ai_handling_policy": "local_only", "confirmed_public_information": "true"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["provider"] == "deterministic"
 
 
 def test_ingestion_rejects_unconfirmed_document(client: TestClient) -> None:
