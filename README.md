@@ -46,6 +46,10 @@ Stage 8 hardening begins with an integrated command-centre dashboard that priori
 and time-sensitive workflows without changing data. Local backups are checksum-verified and their
 SQLite snapshots must pass an integrity check before success is reported.
 
+Stage 9 adds a **Document studio** for professional biographies, executive profiles and
+LinkedIn About sections grounded in active career assets. Drafts are editable, auditable and
+exportable as standalone DOCX and PDF documents.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -72,6 +76,8 @@ description intake, evidence mapping, drafting, and export.
 See the [Stage 8 hardening guide](docs/development/stage-8-mvp-hardening.md) and
 [Windows operations guide](docs/development/windows-operations.md) for dashboard, backup,
 recovery and troubleshooting verification.
+See the [Stage 9 document-studio guide](docs/development/stage-9-document-studio.md) for
+grounded career-document generation, review and export.
 
 ## Documentation
 

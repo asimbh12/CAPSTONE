@@ -97,11 +97,22 @@ drafts, unsupported-claim reporting, audit events, and combined DOCX/PDF applica
 - Windows installation, operation, and troubleshooting guides.
 - Test with the owner's public professional seed dataset.
 
-Stage 8 in progress: the integrated dashboard now provides stable next-best-action recommendations;
+Stage 8 delivered: the integrated dashboard provides stable next-best-action recommendations;
 new backups receive manifest checksum and SQLite integrity verification; recovery tests open a
 clean restored database snapshot; and Windows startup, operation, restore and troubleshooting
 procedures are documented. The Data safety workspace now exposes migration, database, storage,
 document-checksum, AI-policy, backup, failed-workflow and audit-history release-gate checks.
+
+## Stage 9 — Career Document Studio
+
+- Generate reusable career documents from verified career assets.
+- Support audience, purpose and tone controls.
+- Preserve source-asset grounding and unsupported-claim warnings.
+- Provide editable on-screen drafts and standalone DOCX/PDF export.
+
+Stage 9 first slice delivered: professional biographies, executive profiles and LinkedIn About
+sections are generated from active career assets, stored locally, editable, auditable and
+exportable in DOCX and PDF.
 
 ## Deferred roadmap
 

@@ -20,6 +20,7 @@ from app.models.career import (
     Person,
     StrategicGoal,
     Theme,
+    Visibility,
 )
 from app.schemas.career import (
     AssetCreate,
@@ -166,7 +167,7 @@ def achieve_goal(
             date_precision="day",
             status=AssetStatus.ACTIVE,
             impact_summary=impact_summary,
-            visibility="public",
+            visibility=Visibility.PUBLIC,
             tags=["strategic goal", "achievement", goal.horizon.replace("_", " ")],
             keywords=["goal achieved", goal.title],
         ),

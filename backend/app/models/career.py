@@ -255,6 +255,23 @@ class ApplicationDraft(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utc_now, index=True)
 
 
+class CareerDocument(SQLModel, table=True):
+    __tablename__ = "career_documents"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    document_type: str = Field(max_length=50, index=True)
+    title: str = Field(max_length=300, index=True)
+    audience: str = Field(default="", max_length=300)
+    purpose: str = Field(default="", sa_column=Column(Text, nullable=False))
+    tone: str = Field(default="executive", max_length=50)
+    content: str = Field(default="", sa_column=Column(Text, nullable=False))
+    provider: str = Field(default="grounded_template", max_length=50)
+    asset_ids_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    unsupported_claims_json: str = Field(default="[]", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now, index=True)
+    updated_at: datetime = Field(default_factory=utc_now)
+
+
 class Target(SQLModel, table=True):
     __tablename__ = "targets"
 

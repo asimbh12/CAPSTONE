@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { AppLayout, type PageKey } from './components/AppLayout'
 import { AssetsPage } from './pages/AssetsPage'
 import { DataPage } from './pages/DataPage'
+import { DocumentsPage } from './pages/DocumentsPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { OpportunitiesPage } from './pages/OpportunitiesPage'
@@ -21,6 +22,7 @@ export function App() {
     timeline: <TimelinePage />,
     opportunities: <OpportunitiesPage />,
     applications: <ApplicationsPage />,
+    documents: <DocumentsPage />,
     targets: <TargetsPage />,
     profile: <ProfilePage />,
     data: <DataPage />,

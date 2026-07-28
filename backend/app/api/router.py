@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     applications,
     career,
+    career_documents,
     dashboard,
     data,
     health,
@@ -22,3 +23,6 @@ api_router.include_router(ingestion.router, prefix="/ingestions", tags=["career 
 api_router.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
 api_router.include_router(targets.router, prefix="/targets", tags=["targets and readiness"])
 api_router.include_router(applications.router, prefix="/applications", tags=["job applications"])
+api_router.include_router(
+    career_documents.router, prefix="/career-documents", tags=["career documents"]
+)

@@ -118,7 +118,7 @@ export interface DashboardAction {
   key: string
   title: string
   description: string
-  page: 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'applications' | 'targets' | 'profile' | 'data'
+  page: 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'applications' | 'documents' | 'targets' | 'profile' | 'data'
   priority: number
   count: number
   urgency: 'critical' | 'high' | 'medium' | 'low'
@@ -376,4 +376,19 @@ export interface JobApplication {
   requirements: ApplicationRequirement[]
   assessment: ApplicationAssessment | null
   drafts: ApplicationDraft[]
+}
+
+export interface CareerDocument {
+  id: string
+  document_type: 'professional_biography' | 'executive_profile' | 'linkedin_about'
+  title: string
+  audience: string
+  purpose: string
+  tone: 'executive' | 'academic' | 'accessible'
+  content: string
+  provider: string
+  asset_ids: string[]
+  unsupported_claims: string[]
+  created_at: string
+  updated_at: string
 }

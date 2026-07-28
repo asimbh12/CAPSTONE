@@ -55,6 +55,7 @@ describe('App', () => {
           }],
         })
         if (url.includes('/assets?')) return jsonResponse({ items: [], total: 0 })
+        if (url.endsWith('/career-documents')) return jsonResponse({ items: [], total: 0 })
         if (url.endsWith('/profile')) return jsonResponse(null)
         if (url.endsWith('/opportunities/summary')) return jsonResponse({ active: 0, pursuing: 0, closing_soon: 0, top_opportunity: null })
         if (url.endsWith('/goals') || url.endsWith('/themes') || url.endsWith('/organisations') || url.endsWith('/timeline')) return jsonResponse([])
@@ -77,6 +78,10 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Run readiness checks' }))
     expect(await screen.findByText('MVP checks need attention')).toBeInTheDocument()
     expect(await screen.findByText('No local backup is available.')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Document studio' }))
+    expect(await screen.findByRole('heading', { name: 'Document studio' })).toBeInTheDocument()
+    expect(await screen.findByText(/No career documents yet/i)).toBeInTheDocument()
   })
 
   it('shows a useful status when the API is unavailable', async () => {

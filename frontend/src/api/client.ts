@@ -2,6 +2,7 @@ import type {
   AssetInput,
   BackupRecord,
   CareerAsset,
+  CareerDocument,
   DocumentRecord,
   Dashboard,
   Evidence,
@@ -161,6 +162,25 @@ export const careerApi = {
   confirmApplicationRequirements: (id: string, application: JobApplication) => request<JobApplication>(`/applications/${id}/requirements`, { method: 'PUT', body: JSON.stringify({ confirmed: true, requirements: application.requirements.map(({ title, description, requirement_type, weight }) => ({ title, description, requirement_type, weight })) }) }),
   assessApplication: (id: string) => request<JobApplication>(`/applications/${id}/assess`, { method: 'POST' }),
   generateApplicationDrafts: (id: string) => request<JobApplication>(`/applications/${id}/drafts`, { method: 'POST' }),
+  listCareerDocuments: () =>
+    request<{ items: CareerDocument[]; total: number }>('/career-documents'),
+  generateCareerDocument: (payload: {
+    document_type: CareerDocument['document_type']
+    title: string
+    audience: string
+    purpose: string
+    tone: CareerDocument['tone']
+    asset_ids: string[]
+  }) =>
+    request<CareerDocument>('/career-documents', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateCareerDocument: (id: string, title: string, content: string) =>
+    request<CareerDocument>(`/career-documents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title, content }),
+    }),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`
