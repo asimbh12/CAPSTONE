@@ -51,6 +51,9 @@ LinkedIn About sections, academic/executive/board/grant CVs and capability state
 user-selected active career assets. Drafts are editable, auditable and exportable as standalone
 DOCX and PDF documents.
 
+Stage 10 adds a **Fellowships** dashboard for deadlines, sponsor/nominator progress, next actions
+and evidence-based readiness inherited from existing career targets.
+
 ## Run locally
 
 With Docker Desktop running:
@@ -79,6 +82,8 @@ See the [Stage 8 hardening guide](docs/development/stage-8-mvp-hardening.md) and
 recovery and troubleshooting verification.
 See the [Stage 9 document-studio guide](docs/development/stage-9-document-studio.md) for
 grounded career-document generation, review and export.
+See the [Stage 10 fellowship guide](docs/development/stage-10-fellowships.md) for recognition
+pathway, sponsor and readiness tracking.
 
 ## Documentation
 

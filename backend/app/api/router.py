@@ -6,6 +6,7 @@ from app.api.routes import (
     career_documents,
     dashboard,
     data,
+    fellowships,
     health,
     ingestion,
     opportunities,
@@ -26,3 +27,4 @@ api_router.include_router(applications.router, prefix="/applications", tags=["jo
 api_router.include_router(
     career_documents.router, prefix="/career-documents", tags=["career documents"]
 )
+api_router.include_router(fellowships.router, prefix="/fellowships", tags=["fellowships"])

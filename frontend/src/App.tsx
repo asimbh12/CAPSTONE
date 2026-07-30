@@ -5,6 +5,7 @@ import { AppLayout, type PageKey } from './components/AppLayout'
 import { AssetsPage } from './pages/AssetsPage'
 import { DataPage } from './pages/DataPage'
 import { DocumentsPage } from './pages/DocumentsPage'
+import { FellowshipsPage } from './pages/FellowshipsPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { OpportunitiesPage } from './pages/OpportunitiesPage'
@@ -23,6 +24,7 @@ export function App() {
     opportunities: <OpportunitiesPage />,
     applications: <ApplicationsPage />,
     documents: <DocumentsPage />,
+    fellowships: <FellowshipsPage />,
     targets: <TargetsPage />,
     profile: <ProfilePage />,
     data: <DataPage />,

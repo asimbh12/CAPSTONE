@@ -56,6 +56,10 @@ describe('App', () => {
         })
         if (url.includes('/assets?')) return jsonResponse({ items: [], total: 0 })
         if (url.endsWith('/career-documents')) return jsonResponse({ items: [], total: 0 })
+        if (url.endsWith('/fellowships')) return jsonResponse({
+          items: [], total: 0, active: 0, closing_soon: 0, sponsor_attention: 0,
+        })
+        if (url.endsWith('/targets')) return jsonResponse([])
         if (url.endsWith('/profile')) return jsonResponse(null)
         if (url.endsWith('/opportunities/summary')) return jsonResponse({ active: 0, pursuing: 0, closing_soon: 0, top_opportunity: null })
         if (url.endsWith('/goals') || url.endsWith('/themes') || url.endsWith('/organisations') || url.endsWith('/timeline')) return jsonResponse([])
@@ -82,6 +86,10 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Document studio' }))
     expect(await screen.findByRole('heading', { name: 'Document studio' })).toBeInTheDocument()
     expect(await screen.findByText(/No career documents yet/i)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Fellowships' }))
+    expect(await screen.findByRole('heading', { name: 'Fellowship dashboard' })).toBeInTheDocument()
+    expect(await screen.findByText(/No fellowship pathways yet/i)).toBeInTheDocument()
   })
 
   it('shows a useful status when the API is unavailable', async () => {

@@ -118,7 +118,8 @@ export interface DashboardAction {
   key: string
   title: string
   description: string
-  page: 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'applications' | 'documents' | 'targets' | 'profile' | 'data'
+  page: 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' |
+    'applications' | 'documents' | 'fellowships' | 'targets' | 'profile' | 'data'
   priority: number
   count: number
   urgency: 'critical' | 'high' | 'medium' | 'low'
@@ -393,3 +394,37 @@ export interface CareerDocument {
   created_at: string
   updated_at: string
 }
+
+export interface Fellowship {
+  id: string
+  name: string
+  organisation: string
+  website: string
+  deadline: string | null
+  status: 'exploring' | 'preparing' | 'seeking_sponsor' | 'ready' | 'submitted' |
+    'awarded' | 'unsuccessful' | 'paused' | 'archived'
+  target_id: string | null
+  opportunity_id: string | null
+  sponsor_name: string
+  sponsor_status: 'not_identified' | 'candidate' | 'approached' | 'confirmed' | 'not_required'
+  next_action: string
+  notes: string
+  readiness_score: number | null
+  readiness_confidence: number | null
+  readiness_version: number | null
+  target_title: string
+  strengths: string[]
+  gaps: string[]
+  recommendations: string[]
+  days_remaining: number | null
+  deadline_status: 'not_set' | 'overdue' | 'closing_soon' | 'scheduled'
+  created_at: string
+  updated_at: string
+}
+
+export type FellowshipInput = Omit<
+  Fellowship,
+  'id' | 'readiness_score' | 'readiness_confidence' | 'readiness_version' |
+  'target_title' | 'strengths' | 'gaps' | 'recommendations' | 'days_remaining' |
+  'deadline_status' | 'created_at' | 'updated_at'
+>

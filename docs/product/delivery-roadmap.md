@@ -117,6 +117,16 @@ exportable in DOCX and PDF.
 Stage 9 second slice delivered: academic, executive, board and two-page grant CVs plus capability
 statements use template-specific generation guidance and explicit user selection of source assets.
 
+## Stage 10 — Fellowship Dashboard
+
+- Track fellowship programmes, deadlines, workflow, sponsors and next actions.
+- Reuse existing target criteria, mapped evidence and versioned readiness assessments.
+- Surface closing deadlines and sponsor-attention priorities.
+
+Stage 10 first slice delivered: custom and standard fellowship pathways can be linked to existing
+readiness targets, managed through nomination workflow states and archived without deleting
+history.
+
 ## Deferred roadmap
 
 After MVP validation: broader document templates, fellowships, awards, grants, CRM, thought leadership, discovery/monitoring, honours, analytics expansion, PostgreSQL, authentication, multi-user workspaces, cloud deployment, encryption and production monitoring.

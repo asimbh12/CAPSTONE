@@ -6,6 +6,8 @@ import type {
   DocumentRecord,
   Dashboard,
   Evidence,
+  Fellowship,
+  FellowshipInput,
   Goal,
   ImpactSummaryOptions,
   GoalReadiness,
@@ -181,6 +183,17 @@ export const careerApi = {
       method: 'PUT',
       body: JSON.stringify({ title, content }),
     }),
+  listFellowships: () =>
+    request<{ items: Fellowship[]; total: number; active: number; closing_soon: number; sponsor_attention: number }>('/fellowships'),
+  createFellowship: (payload: FellowshipInput) =>
+    request<Fellowship>('/fellowships', { method: 'POST', body: JSON.stringify(payload) }),
+  updateFellowship: (id: string, payload: FellowshipInput) =>
+    request<Fellowship>(`/fellowships/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  archiveFellowship: (id: string) =>
+    request<Fellowship>(`/fellowships/${id}/archive`, { method: 'POST' }),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`
