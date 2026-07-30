@@ -54,6 +54,9 @@ DOCX and PDF documents.
 Stage 10 adds a **Fellowships** dashboard for deadlines, sponsor/nominator progress, next actions
 and evidence-based readiness inherited from existing career targets.
 
+Stage 11 adds an **Awards** dashboard for recognition pathways, deadlines, nominators, dossier
+progress and evidence-based readiness inherited from existing career targets.
+
 ## Run locally
 
 With Docker Desktop running:

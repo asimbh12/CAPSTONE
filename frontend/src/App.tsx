@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { AppLayout, type PageKey } from './components/AppLayout'
 import { AssetsPage } from './pages/AssetsPage'
+import { AwardsPage } from './pages/AwardsPage'
 import { DataPage } from './pages/DataPage'
 import { DocumentsPage } from './pages/DocumentsPage'
 import { FellowshipsPage } from './pages/FellowshipsPage'
@@ -25,6 +26,7 @@ export function App() {
     applications: <ApplicationsPage />,
     documents: <DocumentsPage />,
     fellowships: <FellowshipsPage />,
+    awards: <AwardsPage />,
     targets: <TargetsPage />,
     profile: <ProfilePage />,
     data: <DataPage />,

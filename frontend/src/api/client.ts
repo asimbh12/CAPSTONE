@@ -1,4 +1,6 @@
 import type {
+  AwardInput,
+  AwardPathway,
   AssetInput,
   BackupRecord,
   CareerAsset,
@@ -194,6 +196,14 @@ export const careerApi = {
     }),
   archiveFellowship: (id: string) =>
     request<Fellowship>(`/fellowships/${id}/archive`, { method: 'POST' }),
+  listAwards: () =>
+    request<{ items: AwardPathway[]; total: number; active: number; closing_soon: number; nomination_attention: number }>('/awards'),
+  createAward: (payload: AwardInput) =>
+    request<AwardPathway>('/awards', { method: 'POST', body: JSON.stringify(payload) }),
+  updateAward: (id: string, payload: AwardInput) =>
+    request<AwardPathway>(`/awards/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  archiveAward: (id: string) =>
+    request<AwardPathway>(`/awards/${id}/archive`, { method: 'POST' }),
 }
 
 export const downloadUrl = (path: string) => `${apiBaseUrl}${path.replace(/^\/api/, '')}`

@@ -29,7 +29,7 @@ import { type ReactNode, useState } from 'react'
 
 import { useApiHealth } from '../hooks/useApiHealth'
 
-export type PageKey = 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'applications' | 'documents' | 'fellowships' | 'targets' | 'profile' | 'data'
+export type PageKey = 'overview' | 'onboarding' | 'assets' | 'timeline' | 'opportunities' | 'applications' | 'documents' | 'fellowships' | 'awards' | 'targets' | 'profile' | 'data'
 
 interface AppLayoutProps {
   page: PageKey
@@ -47,6 +47,7 @@ const navigation: Array<{ key: PageKey; label: string; icon: ReactNode }> = [
   { key: 'applications', label: 'Job applications', icon: <WorkOutlineOutlined /> },
   { key: 'documents', label: 'Document studio', icon: <DescriptionOutlined /> },
   { key: 'fellowships', label: 'Fellowships', icon: <WorkspacePremiumOutlined /> },
+  { key: 'awards', label: 'Awards', icon: <WorkspacePremiumOutlined /> },
   { key: 'targets', label: 'Targets & readiness', icon: <TrackChangesOutlined /> },
   { key: 'profile', label: 'Profile & goals', icon: <AccountCircleOutlined /> },
   { key: 'data', label: 'Data safety', icon: <BackupOutlined /> },

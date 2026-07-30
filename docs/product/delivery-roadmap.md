@@ -127,6 +127,17 @@ Stage 10 first slice delivered: custom and standard fellowship pathways can be l
 readiness targets, managed through nomination workflow states and archived without deleting
 history.
 
+## Stage 11 — Awards and Recognition
+
+- Track Eureka, Clunies Ross, Research Australia, Prime Minister's and custom awards.
+- Reuse target-linked evidence and versioned readiness assessments.
+- Manage deadlines, nominators, nomination dossiers and next actions.
+
+Stage 11 first slice delivered: award pathways provide deadline and nomination workflow tracking,
+target-linked readiness, dossier progress and non-destructive archiving.
+
 ## Deferred roadmap
 
-After MVP validation: broader document templates, fellowships, awards, grants, CRM, thought leadership, discovery/monitoring, honours, analytics expansion, PostgreSQL, authentication, multi-user workspaces, cloud deployment, encryption and production monitoring.
+After MVP validation: nomination-draft generation, grants, CRM, thought leadership,
+discovery/monitoring, honours, analytics expansion, PostgreSQL, authentication, multi-user
+workspaces, cloud deployment, encryption and production monitoring.

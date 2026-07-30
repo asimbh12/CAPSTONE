@@ -25,7 +25,7 @@ def test_all_migrations_upgrade_an_empty_database_to_head(
     engine = create_engine(database_url)
     with engine.connect() as connection:
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == (
-            "20260730_0012"
+            "20260730_0013"
         )
         assert connection.execute(text("PRAGMA integrity_check")).scalar_one() == "ok"
     tables = set(inspect(engine).get_table_names())
@@ -38,6 +38,7 @@ def test_all_migrations_upgrade_an_empty_database_to_head(
         "job_applications",
         "career_documents",
         "fellowships",
+        "award_pathways",
         "audit_events",
     }.issubset(tables)
     engine.dispose()

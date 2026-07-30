@@ -2,6 +2,7 @@ from app.models.career import (
     AiOperation,
     AssetThemeLink,
     AuditEvent,
+    AwardPathway,
     CareerAsset,
     CareerDocument,
     CareerProfile,
@@ -29,6 +30,7 @@ from app.models.system_metadata import SystemMetadata
 __all__ = [
     "AssetThemeLink",
     "AiOperation",
+    "AwardPathway",
     "AuditEvent",
     "CareerAsset",
     "CareerDocument",

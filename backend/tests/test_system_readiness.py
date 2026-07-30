@@ -15,7 +15,7 @@ def _mark_migrations_current() -> None:
         )
         connection.execute(text("DELETE FROM alembic_version"))
         connection.execute(
-            text("INSERT INTO alembic_version (version_num) VALUES ('20260730_0012')")
+            text("INSERT INTO alembic_version (version_num) VALUES ('20260730_0013')")
         )
 
 
@@ -69,7 +69,7 @@ def test_system_readiness_reports_schema_revision_mismatch(client: TestClient) -
     assert report["status"] == "blocked"
     check = _check(report, "database_migrations")
     assert check["status"] == "fail"
-    assert any("Expected: 20260730_0012" in detail for detail in check["details"])
+    assert any("Expected: 20260730_0013" in detail for detail in check["details"])
 
 
 def test_system_readiness_detects_restricted_ai_use_and_recoverable_failure(

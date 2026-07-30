@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.routes import (
     applications,
+    awards,
     career,
     career_documents,
     dashboard,
@@ -28,3 +29,4 @@ api_router.include_router(
     career_documents.router, prefix="/career-documents", tags=["career documents"]
 )
 api_router.include_router(fellowships.router, prefix="/fellowships", tags=["fellowships"])
+api_router.include_router(awards.router, prefix="/awards", tags=["awards and recognition"])

@@ -291,6 +291,27 @@ class Fellowship(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utc_now, index=True)
 
 
+class AwardPathway(SQLModel, table=True):
+    __tablename__ = "award_pathways"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    name: str = Field(max_length=300, index=True)
+    organisation: str = Field(default="", max_length=250)
+    award_type: str = Field(default="custom", max_length=60, index=True)
+    website: str = Field(default="", max_length=1_000)
+    deadline: date | None = Field(default=None, index=True)
+    status: str = Field(default="exploring", max_length=30, index=True)
+    target_id: UUID | None = Field(default=None, foreign_key="targets.id")
+    opportunity_id: UUID | None = Field(default=None, foreign_key="opportunities.id")
+    nominator_name: str = Field(default="", max_length=250)
+    nominator_status: str = Field(default="not_identified", max_length=30)
+    dossier_status: str = Field(default="not_started", max_length=30)
+    next_action: str = Field(default="", max_length=500)
+    notes: str = Field(default="", sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=utc_now)
+    updated_at: datetime = Field(default_factory=utc_now, index=True)
+
+
 class Target(SQLModel, table=True):
     __tablename__ = "targets"
 
